@@ -16,7 +16,7 @@ The project is organized into the following modules:
             - memory
 
 [joamag's boytacean gameboy emulator](https://github.com/joamag/boytacean) 
-inspired my project layout to funnel all the things into the cpu.
+inspired my project layout to funnel all the things into the cpu. :)
 
 ## Features
 
