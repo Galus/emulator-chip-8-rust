@@ -5,8 +5,9 @@ edition = "2021"
 
 [dependencies]
 color-eyre = "0.6.3"
+crossterm = "0.28.1"
 log = "0.4.27"
 phf = "0.12.1"
 rand = "0.8.5"
-ratatui = "0.28.1"
-tui-logger = "0.17.1"
+ratatui = "0.29.0"
+tui-logger = "0.17.3"

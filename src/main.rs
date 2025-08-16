@@ -5,7 +5,7 @@
 // / / /_  _\      | (_| | (_| | | |_| \__ \            /_  _\/ /
 ///_/    \/         \__, |\__,_|_|\__,_|___/              \/ /_/
 //                  |___/
-use color_eyre::{eyre::eyre, install, Result};
+use color_eyre::{eyre::eyre, Result};
 
 mod emojis;
 mod emu;
@@ -25,6 +25,7 @@ extern crate log;
 fn setup_logging() -> Result<()> {
     init_logger(log::LevelFilter::Trace).unwrap();
     set_default_level(log::LevelFilter::Trace);
+
     let mut dir = temp_dir();
     dir.push("chip8.log");
     let dir_str = dir.to_str().ok_or(eyre!("Failed to get log file path"))?;
@@ -40,7 +41,7 @@ fn setup_logging() -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    install()?; // error hooks
+    color_eyre::install()?; // error hooks
     setup_logging()?;
 
     println!("{} Initializing emulator", E["dynamite"]);

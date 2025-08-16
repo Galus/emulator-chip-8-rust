@@ -1,23 +1,24 @@
+// I am thinking of making this a layer between the App and the Ratatui
 // Contains the graphics processing.
 use color_eyre::{
     eyre::{bail, WrapErr},
     Report, Result,
 };
-
 use std::time::Duration;
 
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+};
+
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
+
+use crossterm::execute;
+
 use ratatui::{
-    backend::CrosstermBackend,
     buffer::Buffer,
-    crossterm::{
-        event::{
-            self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-        },
-        execute,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    },
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    prelude::Backend,
     style::{Color, Style, Stylize},
     symbols::{border, Marker},
     text::{Line, Span, Text},
@@ -26,71 +27,62 @@ use ratatui::{
         canvas::{Canvas, Rectangle},
         Block, Paragraph, Widget,
     },
-    Frame, Terminal,
+    DefaultTerminal, Frame,
 };
+
 use tui_logger::{ExtLogRecord, LevelFilter, LogFormatter, TuiWidgetEvent, TuiWidgetState};
 
-use std::io::{self, stdout, Stdout};
+use std::io::{self, stdout};
 use std::sync::mpsc;
 use std::thread;
-/// A type alias for the terminal type used in this application
-pub type Tui = Terminal<CrosstermBackend<Stdout>>;
 
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
+
 #[derive(Debug)]
 pub struct Gpu {
     pub counter: u8,
-    pub exit: bool,
     pub screen: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
 }
 
-//impl Default for Gpu {
-//    fn default() -> Self {
-//        let screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
-//        Self {
-//            counter: 0,
-//            exit: false,
-//            screen,
-//        }
-//    }
-//}
-
+//--------------------------------------------------------------
+// Gpu
+// Part of the App.
+// Struggling with if this name and purpose;
+// is this the monitor, the GPU, or something else?
+//--------------------------------------------------------------
 impl Gpu {
     pub fn new() -> Self {
         Self {
             counter: 0,
-            exit: false,
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
     }
 
-    pub fn run(&mut self, terminal: &mut Tui) -> Result<()> {
-        while !self.exit {
-            //
+    //pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
+    //    while !self.exit {
+    //        // Render
+    //        terminal.draw(|frame| self.render_frame(frame))?;
+    //
+    //        // Handle Input
+    //        self.handle_events().wrap_err("handle events failed")?;
+    //    }
+    //    Ok(())
+    //}
 
-            // Render
-            terminal.draw(|frame| self.render_frame(frame))?;
+    //fn render_frame(&self, frame: &mut Frame) {
+    //    frame.render_widget(self, frame.area());
+    //}
 
-            // Handle Input
-            self.handle_events().wrap_err("handle events failed")?;
-        }
-        Ok(())
-    }
-
-    fn render_frame(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
-    }
-
-    pub fn handle_events(&mut self) -> Result<u8> {
-        //color_eyre::install()?; // error hooks
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => self
-                .handle_key_event(key_event)
-                .wrap_err_with(|| format!("handling key event failed:\n{key_event:#?}")),
-            _ => Ok(255),
-        }
-    }
+    //pub fn handle_events(&mut self) -> Result<u8> {
+    //    //color_eyre::install()?; // error hooks
+    //    match event::read()? {
+    //        Event::Key(key_event) if key_event.kind == KeyEventKind::Press => self
+    //            .handle_key_event(key_event)
+    //            .wrap_err_with(|| format!("handling key event failed:\n{key_event:#?}")),
+    //        _ => Ok(255),
+    //    }
+    //}
 
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<u8> {
         match key_event.code {
@@ -129,9 +121,9 @@ impl Gpu {
         //Ok(111)
     }
 
-    fn exit(&mut self) {
-        self.exit = true;
-    }
+    //fn exit(&mut self) {
+    //    self.exit = true;
+    //}
 
     // galus: There is an overflow bug here left for educational porpoises 🎓 🐬
     fn increment_counter(&mut self) -> Result<()> {
@@ -174,34 +166,9 @@ impl Gpu {
             });
         canvas
     }
+} // End impl Gpu
 
-    /// Initialize the terminal
-    pub fn init(&self) -> io::Result<Tui> {
-        trace!(target:"tui", "Initializing terminal");
-        enable_raw_mode()?; // takes input w/o w8n 4 newline, prevents keys being echo'd back
-        execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-        Self::set_panic_hook();
-        let backend = CrosstermBackend::new(stdout());
-        Terminal::new(backend)
-    }
-
-    /// Restore the terminal to its original state
-    pub fn restore(&self) -> io::Result<()> {
-        trace!(target:"tui", "Restoring terminal");
-        disable_raw_mode()?;
-        execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
-        Ok(())
-    }
-
-    fn set_panic_hook() {
-        let hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |panic_info| {
-            let _ = Self::restore(&Self::new());
-            hook(panic_info);
-        }))
-    }
-}
-
+/// I like to say Ratatui
 impl Widget for &Gpu {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Title::from(Line::from(vec![
@@ -247,13 +214,19 @@ impl Widget for &Gpu {
     }
 }
 
-#[derive(Debug)]
+//--------------------------------------------------------------
+// App
+// Core App Logic
+//--------------------------------------------------------------
+
+//#[derive(Debug)]
 struct App {
     mode: AppMode,
     states: Vec<TuiWidgetState>,
     tab_names: Vec<&'static str>,
     selected_tab: usize,
     progress_counter: Option<u16>,
+    gpu: Gpu,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -285,26 +258,13 @@ impl App {
             tab_names,
             selected_tab: 0,
             progress_counter: None,
+            gpu: Gpu::new(),
         }
-    }
-
-    pub fn start(mut self, terminal: &mut Terminal<impl Backend>) -> color_eyre::Result<()> {
-        let (tx, rx) = mpsc::channel();
-        let event_tx = tx.clone();
-        let progress_tx = tx.clone();
-
-        thread::spawn(move || input_thread(event_tx));
-        thread::spawn(move || progres_task(progress_tx).unwrap());
-        thread::spawn(move || background_task());
-        thread::spawn(move || background_task2());
-        thread::spawn(move || heart_task());
-
-        self.run(terminal, rx);
     }
 
     fn run(
         &mut self,
-        terminal: &mut Terminal<impl Backend>,
+        terminal: &mut DefaultTerminal,
         rx: mpsc::Receiver<AppEvent>,
     ) -> color_eyre::Result<()> {
         for event in rx {
@@ -364,27 +324,126 @@ impl App {
         self.selected_tab = (self.selected_tab + 1) & self.tab_names.len();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal<impl Backend>) -> color_eyre::Result<()> {
+    fn draw(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
         terminal.draw(|frame| {
+            // Render the entire App widget.
             frame.render_widget(self, frame.area());
         })?;
         Ok(())
     }
+} // End impl App
+
+//--------------------------------------------------------------
+// App
+// The V in MVC
+//--------------------------------------------------------------
+impl Widget for &App {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        // manage layout here
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(area);
+
+        // renders the GPU widget in the left chunk
+        self.gpu.render(chunks[0], buf);
+
+        // renders the logger on the right
+        let log_block = Block::bordered().title("Log Output");
+        let log_content = Paragraph::new("Placeholder for log output");
+        log_content.block(log_block).render(chunks[1], buf);
+    }
 }
 
-fn progress_task(tx: mpsc::Sender<AppEvent>) -> color_eyre::Result<()> {
-    for progress in 0..100 {
-        debug!(target:"progress-task", "Send progress to UI thread. Value: {:?}", progress);
-        tx.send(AppEvent::CounterChanged(Some(progress)))?;
+// TODO: Figure out if I want this still.
+pub fn start(mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
+    let (tx, rx) = mpsc::channel();
+    let event_tx = tx.clone();
+    let progress_tx = tx.clone();
 
-        trace!(target:"progress-task", "Sleep one second");
-        thread::sleep(Duration::from_millis(1000));
+    thread::spawn(move || input_thread(event_tx));
+    thread::spawn(move || progress_task(progress_tx).unwrap());
+    thread::spawn(move || background_task());
+    thread::spawn(move || background_task2());
+    thread::spawn(move || heart_task());
+
+    self.run(terminal, rx);
+
+    Ok(())
+}
+
+// -------------------------------------------
+// Utility
+// Terminal Managment Functions
+// -------------------------------------------
+
+/// Initialize the terminal
+fn init() -> io::Result<DefaultTerminal> {
+    trace!(target:"tui", "Initializing terminal");
+    enable_raw_mode()?; // takes input w/o w8n 4 newline, prevents keys being echo'd back
+    execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+    set_panic_hook();
+
+    let mut terminal = ratatui::init(); // ratatui.rs has 'let mut terminal'
+    Ok(terminal)
+}
+
+/// Restore the terminal to its original state
+fn restore() -> io::Result<()> {
+    trace!(target:"tui", "Restoring terminal");
+    disable_raw_mode()?;
+    execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+    Ok(())
+}
+
+fn set_panic_hook() {
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let _ = restore();
+        hook(panic_info);
+    }))
+}
+
+// -------------------------------------------
+// Threads
+// Separate threads for background tasks.
+// -------------------------------------------
+
+/// Responsible for handling user input
+fn input_thread(tx: mpsc::Sender<AppEvent>) -> Result<()> {
+    loop {
+        match event::read() {
+            Ok(event) => {
+                if let Event::Key(key) = event {
+                    if key.kind == KeyEventKind::Press {
+                        if tx.send(AppEvent::UiEvent(event)).is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Error reading event: {}", e);
+                break;
+            }
+        }
     }
-    info!(target: "progress-task", "Progress task finished");
+    Ok(())
+}
+
+/// Sends AppEvent::CounterChanged events at constant intervals
+fn progress_task(tx: mpsc::Sender<AppEvent>) -> Result<()> {
+    info!(target: "progress-task", "Starting progress task...");
+    for progress in 0..100 {
+        tx.send(AppEvent::CounterChanged(Some(progress)))?;
+        thread::sleep(Duration::from_millis(3000));
+    }
+    info!(target: "progress-task", "Progress task finished!");
     tx.send(AppEvent::CounterChanged(None))?;
     Ok(())
 }
 
+/// Spams a bunch of logs every second
 fn background_task() {
     loop {
         error!(target: "background-task", "an error");
@@ -397,6 +456,7 @@ fn background_task() {
     }
 }
 
+/// Spams a long log message every second
 fn background_task2() {
     loop {
         info!(target: "background-task2", "This is a very long message, blah di blah di blah, lets wrap this up with some screen size magic.");
@@ -404,6 +464,7 @@ fn background_task2() {
     }
 }
 
+/// Spams hearts <3 every 1.5 seconds
 fn heart_task() {
     let mut line = "<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3".to_string();
     loop {
@@ -412,6 +473,11 @@ fn heart_task() {
         thread::sleep(time::Duration::from_millis(1500));
     }
 }
+
+//--------------------------------------------------------------
+// Logging
+// Ugly LogFormatter
+//--------------------------------------------------------------
 
 struct MyLogFormatter {}
 impl LogFormatter for MyLogFormatter {
@@ -450,44 +516,3 @@ impl LogFormatter for MyLogFormatter {
         lines
     }
 }
-
-//use ratatui::{
-//    backend::CrosstermBackend,
-//    crossterm::{
-//        execute,
-//        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-//    },
-//    Terminal,
-//};
-
-//
-//use ratatui::{
-//    style::Color,
-//    widgets::{canvas::*, *},
-//};
-//
-//Canvas::default()
-//    .block(Block::bordered().title("Canvas"))
-//    .x_bounds([-180.0,180.0])
-//    .y_bounds([-90.0,90.0])
-//    .paint(|ctx| {
-//        ctx.draw(&Map {
-//            resolution: MapResolution::High,
-//            color: Color::White,
-//        });
-//        ctx.layer();
-//        ctx.draw(&Line {
-//            x1: 0.0,
-//            y1: 10.0,
-//            x2: 10.0,
-//            y2: 10.0,
-//            color: Color::White,
-//        });
-//        ctx.draw(&Rectangle {
-//            x: 10.0,
-//            y: 20.0,
-//            width: 10.0,
-//            height: 10.0,
-//            color: Color::Red,
-//        });
-//    });
