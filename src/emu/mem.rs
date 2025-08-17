@@ -1,5 +1,3 @@
-use crate::emu::{Gpu, Keypad, Timer};
-
 /* Chip8 Memory layout
 0x000-0x04F - Chip 8 interpreter (contains font set in emu)       0 -   79
 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)    080 -  160
@@ -9,6 +7,29 @@ use crate::emu::{Gpu, Keypad, Timer};
 "final 352 bytes of memory are reserved for “variables and display refresh"
 https://github.com/mattmikolay/chip-8/wiki/CHIP%E2%80%908-Technical-Reference#registers
 */
+/// Memory Map:
+/// +---------------+= 0xFFF (4095) End of Chip-8 RAM
+/// |               |
+/// |               |
+/// |               |
+/// |               |
+/// |               |
+/// | 0x200 to 0xFFF|
+/// |     Chip-8    |
+/// | Program / Data|
+/// |     Space     |
+/// |               |
+/// |               |
+/// |               |
+/// +- - - - - - - -+= 0x600 (1536) Start of ETI 660 Chip-8 programs
+/// |               |
+/// |               |
+/// |               |
+/// +---------------+= 0x200 (512) Start of most Chip-8 programs
+/// | 0x000 to 0x1FF|
+/// | Reserved for  |
+/// |  interpreter  |
+/// +---------------+= 0x000 (0) Start of Chip-8 RAM
 
 pub const RAM_SIZE: usize = 4096;
 pub const ROM_START_ADDRESS: usize = 0x200; // 512

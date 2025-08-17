@@ -1,6 +1,7 @@
 mod cpu;
 pub mod gpu;
 mod input;
+mod iset;
 mod mem;
 mod timer;
 
@@ -8,40 +9,22 @@ use crate::emojis::EMOJIS as E;
 use cpu::Cpu;
 use gpu::Gpu;
 use input::Keypad;
-use mem::{Memory, FONTS};
+use mem::Memory;
 use timer::Timer; // Avoid Emoji Nightmares
 
-use color_eyre::{
-    eyre::{bail, WrapErr},
-    Report, Result,
-};
+use color_eyre::{eyre::bail, Report, Result};
 use std::time::{self, Duration};
 
-use crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
-};
+use tui_logger::{LevelFilter, TuiWidgetState};
 
-use tui_logger::{ExtLogRecord, LevelFilter, LogFormatter, TuiWidgetEvent, TuiWidgetState};
-
-use std::io::{self, stdout};
 use std::sync::mpsc;
 use std::thread;
 
 use ratatui::{
-    buffer::Buffer,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Stylize},
-    symbols::{border, Marker},
-    text::{Line, Span, Text},
-    widgets::{
-        block::{Position, Title},
-        canvas::{Canvas, Rectangle},
-        Block, Paragraph, Widget,
-    },
+    layout::{Constraint, Direction, Layout},
+    widgets::{Block, Paragraph, Widget},
     DefaultTerminal, Frame,
 };
 
@@ -132,7 +115,8 @@ impl Emulator {
         Ok(())
     }
 
-    fn draw(&self, fame: &mut Frame) {
+    // TODO: What is a Frame?
+    fn draw(&self, frame: &mut Frame) {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])

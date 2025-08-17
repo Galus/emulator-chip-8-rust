@@ -1,7 +1,9 @@
 // Contains the CPUs Registers, OpCodes, and their impls.
 use crate::emu::{
+    gpu::Gpu,
     iset::{Nibbles, OpCode},
     mem::Memory,
+    timer::Timer,
 };
 
 /// https://github.com/mattmikolay/chip-8/wiki/CHIP%E2%80%908-Instruction-Set
@@ -11,67 +13,25 @@ use color_eyre::Result;
 #[allow(dead_code)] // REMOVE THIS WHEN DONE
 pub struct Cpu {
     pub current_opcode: OpCode,
-    // memory: [u8; 4096],
-    pub registers: [u8; 16], // general purpose
-    /// Address of the current instruction
-    /// can only load 12-bit mem address due to range of mem accessible
-    /// even though its 16 bit address-able
-    pub index_register: u16, // can only load 12-bit mem address due to range of mem accessible
-    //                      1111 1111 1111 -> 0xFFF -> 4095 -> memsize
-    pub program_counter: u16,
-
-    // pub screen: [bool; 64 * 32],
-    // pub stack: [u16; 16],
+    pub registers: [u8; 16],  // general purpose reggies V0-VF
+    pub program_counter: u16, // pts to the next instruction
+    //pub stack: [u16; 16], // TODO: Nuke
     pub stack_pointer: usize,
-
-    pub delay_timer: u8,
-    pub sound_timer: u8,
-
-    //pub keypad: [bool; 16],
-    //pub rom_buffer: Vec<u8>, // moved to self.memory.rom
-    //pub running: bool,
-    /// Memory Map:
-    /// +---------------+= 0xFFF (4095) End of Chip-8 RAM
-    /// |               |
-    /// |               |
-    /// |               |
-    /// |               |
-    /// |               |
-    /// | 0x200 to 0xFFF|
-    /// |     Chip-8    |
-    /// | Program / Data|
-    /// |     Space     |
-    /// |               |
-    /// |               |
-    /// |               |
-    /// +- - - - - - - -+= 0x600 (1536) Start of ETI 660 Chip-8 programs
-    /// |               |
-    /// |               |
-    /// |               |
-    /// +---------------+= 0x200 (512) Start of most Chip-8 programs
-    /// | 0x000 to 0x1FF|
-    /// | Reserved for  |
-    /// |  interpreter  |
-    /// +---------------+= 0x000 (0) Start of Chip-8 RAM
-    pub memory: Memory,
+    // IR: Address of the current instruction
+    // even tho u16, can only go to 12-bit mem addys b/c chip8 MAX RAM is 4096
+    // ex. 1111 1111 1111 -> 0xFFF -> 4095 -> memsize
+    pub index_register: u16,
 }
 
 impl Cpu {
     pub fn new() -> Self {
         Self {
             current_opcode: OpCode(0),
-            // memory: [0; 4096], // moved into 'memory' as 'ram'
             registers: [0; 16],
             index_register: 0,
             program_counter: 0x200,
-            // screen: [false; 64 * 32],
             // stack: [0; 16],
             stack_pointer: 0,
-            delay_timer: 0,
-            sound_timer: 0,
-            //keypad: [false; 16],
-            //rom_buffer: Vec::new(), // Moved into 'memory' as 'rom'
-            //running: false,
         }
     }
 
@@ -79,8 +39,21 @@ impl Cpu {
     //    &mut self.mem;
     //}
 
-    /// Map the current OpCode to an actual function.
-    pub fn process(&mut self) -> Result<()> {
+    /// Retrieves opcode from memory into the cpu
+    pub fn fetch_opcode(&mut self, memory: &Memory) {
+        let opcode_high: u8 = memory.ram[self.program_counter as usize];
+        let opcode_low: u8 = memory.ram[self.program_counter as usize + 1];
+        let opcode: u16 = (opcode_high as u16) << 8 | opcode_low as u16;
+        self.current_opcode = OpCode(opcode);
+    }
+
+    pub fn process(
+        &mut self,
+        memory: &mut Memory,
+        gpu: &mut Gpu,
+        timers: &mut Timer,
+    ) -> Result<()> {
+        // Map the current OpCode to an actual function.
         // DECODE and Process
         match &self.current_opcode.into_tuple() {
             (0, 0, 0xE, 0xE) => OpCode::_00ee(self),
@@ -123,23 +96,13 @@ impl Cpu {
         Ok(())
     }
 
-    /// Retrieves opcode from memory into the cpu
-    pub fn fetch_opcode(&mut self) -> Result<bool, bool> {
-        let opcode_high: u8 = self.memory.ram[self.program_counter as usize];
-        let opcode_low: u8 = self.memory.ram[self.program_counter as usize + 1];
-        let opcode: u16 = (opcode_high as u16) << 8 | opcode_low as u16;
-        self.current_opcode = OpCode(opcode);
-        Ok(true)
-    }
-
-    pub fn tick(self, mem: &mut Memory, gpu: &Gpu) {
-        let _ = self.fetch_opcode();
-        if let Err(err) = self.process() {
+    // main emulation loop tick - fetches & processes a single opcode
+    pub fn tick(self, memory: &mut Memory, gpu: &mut Gpu, timers: &mut Timer) -> Result<()> {
+        let _ = self.fetch_opcode(memory);
+        if let Err(err) = self.process(memory, gpu, timers) {
             eprintln!("failed to process.: {}", err);
-            break;
         }
-
-        //gpu.run(&mut terminal)?;
+        Ok(())
     }
 }
 
@@ -174,7 +137,7 @@ mod cputests {
         mem.ram[0x203] = 4;
         mem.ram[0x204] = 5;
 
-        let mut cpu = Cpu::new(mem);
+        let mut cpu = Cpu::new();
 
         // random registers populated
         cpu.registers[0] = 105;

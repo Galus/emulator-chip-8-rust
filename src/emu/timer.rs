@@ -1,21 +1,21 @@
 #[derive(Debug)]
 pub struct Timer {
-    pub timer1: u8,
-    pub timer2: u8,
+    pub delay_timer: u8,
+    pub sound_timer: u8,
 }
 impl Timer {
     pub(crate) fn new(ticks: u8) -> Self {
         Self {
-            timer1: ticks,
-            timer2: ticks * 2,
+            delay_timer: ticks,
+            sound_timer: ticks * 2,
         }
     }
     pub fn tick(&mut self) {
-        if self.timer1 > 0 {
-            self.timer1 -= 1;
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
         }
-        if self.timer2 > 0 {
-            self.timer2 -= 1;
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
         }
     }
 }
