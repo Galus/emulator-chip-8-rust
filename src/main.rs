@@ -9,9 +9,9 @@ use color_eyre::{eyre::eyre, Result};
 
 mod emojis;
 mod emu;
+use emu::Emulator;
 
 use emojis::EMOJIS as E; // Avoid Emoji Nightmares
-use emu::Emulator;
 use std::env::args;
 use std::env::temp_dir;
 use std::fs::read;
@@ -62,28 +62,24 @@ fn main() -> Result<()> {
     let _ = emu.load_rom(); // clears emu.rom_buffer
 
     println!("\t{} Initializing terminal...", E["computer"]);
-    let mut terminal = emu.cpu.memory.gpu.init()?;
+    let mut terminal = emu::gpu::init()?;
 
     println!("\t{} Running app...", E["runner"]);
+    emu.run();
 
-    loop {
-        let _ = emu.cpu.fetch_opcode();
-        if let Err(err) = emu.cpu.process() {
-            eprintln!("failed to process.: {}", err);
-            break;
-        }
+    //loop {
+    //    let _ = emu.cpu.fetch_opcode();
+    //    if let Err(err) = emu.cpu.process() {
+    //        eprintln!("failed to process.: {}", err);
+    //        break;
+    //    }
+    //
+    //    emu.cpu.memory.gpu.run(&mut terminal)?;
+    //
+    //    break;
+    //}
 
-        emu.cpu.memory.gpu.run(&mut terminal)?;
-
-        // Trying to figure out how to have above return a fn ptr
-        // display
-        // inpup
-
-        // add a conditioal break
-        break;
-    }
-
-    if let Err(err) = emu.cpu.memory.gpu.restore() {
+    if let Err(err) = emu::gpu::restore() {
         eprintln!(
             "failed to restore terminal. Run `reset` or restart your terminal to recover: {}",
             err

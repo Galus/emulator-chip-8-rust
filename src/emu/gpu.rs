@@ -4,7 +4,7 @@ use color_eyre::{
     eyre::{bail, WrapErr},
     Report, Result,
 };
-use std::time::Duration;
+use std::time::{self, Duration};
 
 use crossterm::event::{
     self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
@@ -87,7 +87,7 @@ impl Gpu {
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<u8> {
         match key_event.code {
             KeyCode::Char('0') => {
-                self.exit();
+                //TODO: figure out what i was doing here self.exit();
                 return Ok(255);
             }
             KeyCode::Left => {
@@ -288,6 +288,10 @@ impl App {
         }
     }
 
+    fn next_tab(&mut self) {
+        self.selected_tab = (self.selected_tab + 1) % self.tab_names.len();
+    }
+
     fn handle_ui_event(&mut self, event: Event) {
         debug!(target: "App", "Handling UI event {:?}", event);
         let state = self.selected_state();
@@ -327,7 +331,7 @@ impl App {
     fn draw(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
         terminal.draw(|frame| {
             // Render the entire App widget.
-            frame.render_widget(self, frame.area());
+            frame.render_widget(&*self, frame.area());
         })?;
         Ok(())
     }
@@ -355,22 +359,22 @@ impl Widget for &App {
     }
 }
 
-// TODO: Figure out if I want this still.
-pub fn start(mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
-    let (tx, rx) = mpsc::channel();
-    let event_tx = tx.clone();
-    let progress_tx = tx.clone();
-
-    thread::spawn(move || input_thread(event_tx));
-    thread::spawn(move || progress_task(progress_tx).unwrap());
-    thread::spawn(move || background_task());
-    thread::spawn(move || background_task2());
-    thread::spawn(move || heart_task());
-
-    self.run(terminal, rx);
-
-    Ok(())
-}
+//// TODO: Figure out if I want this still.
+//pub fn start(terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
+//    let (tx, rx) = mpsc::channel();
+//    let event_tx = tx.clone();
+//    let progress_tx = tx.clone();
+//
+//    thread::spawn(move || input_thread(event_tx));
+//    thread::spawn(move || progress_task(progress_tx).unwrap());
+//    thread::spawn(move || background_task());
+//    thread::spawn(move || background_task2());
+//    thread::spawn(move || heart_task());
+//
+//    run(terminal, rx);
+//
+//    Ok(())
+//}
 
 // -------------------------------------------
 // Utility
@@ -378,7 +382,7 @@ pub fn start(mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()>
 // -------------------------------------------
 
 /// Initialize the terminal
-fn init() -> io::Result<DefaultTerminal> {
+pub fn init() -> io::Result<DefaultTerminal> {
     trace!(target:"tui", "Initializing terminal");
     enable_raw_mode()?; // takes input w/o w8n 4 newline, prevents keys being echo'd back
     execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
@@ -389,7 +393,7 @@ fn init() -> io::Result<DefaultTerminal> {
 }
 
 /// Restore the terminal to its original state
-fn restore() -> io::Result<()> {
+pub fn restore() -> io::Result<()> {
     trace!(target:"tui", "Restoring terminal");
     disable_raw_mode()?;
     execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
@@ -499,7 +503,7 @@ impl LogFormatter for MyLogFormatter {
                 );
             }
             _ => {
-                lines.push(Lines::from(format!("{}: {}", evt.level, evt.msg())));
+                lines.push(Line::from(format!("{}: {}", evt.level, evt.msg())));
             }
         };
 

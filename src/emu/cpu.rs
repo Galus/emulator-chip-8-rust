@@ -58,7 +58,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(memory: Memory) -> Self {
+    pub fn new() -> Self {
         Self {
             current_opcode: OpCode(0),
             // memory: [0; 4096], // moved into 'memory' as 'ram'
@@ -73,7 +73,6 @@ impl Cpu {
             keypad: [false; 16],
             //rom_buffer: Vec::new(), // Moved into 'memory' as 'rom'
             running: false,
-            memory,
         }
     }
 
@@ -132,6 +131,16 @@ impl Cpu {
         let opcode: u16 = (opcode_high as u16) << 8 | opcode_low as u16;
         self.current_opcode = OpCode(opcode);
         Ok(true)
+    }
+
+    pub fn tick(self, mem: &mut Memory, gpu: &Gpu) {
+        let _ = self.fetch_opcode();
+        if let Err(err) = self.process() {
+            eprintln!("failed to process.: {}", err);
+            break;
+        }
+
+        //gpu.run(&mut terminal)?;
     }
 }
 

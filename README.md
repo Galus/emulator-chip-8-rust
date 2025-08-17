@@ -7,6 +7,23 @@ This is a CHIP-8 emulator implemented in Rust. CHIP-8 is an interpreted programm
 
 ## Project Structure
 
+```
+Module-Level Interaction
+Each component module (cpu.rs, gpu.rs, mem.rs, etc.) should be self-contained and expose public methods for the Emu struct to call.
+
+    cpu.rs: Contains the CPU state (program counter, registers, stack) and logic for fetching and executing opcodes. It will take a mutable reference to Mem and Gpu to interact with them.
+
+    mem.rs: Manages the memory array. It will have methods like read_byte(addr) and write_byte(addr, value).
+
+    gpu.rs: Handles the pixel grid and drawing logic. It should have a method like draw_sprite(x, y, data) that takes a mutable reference to self to update its state. It will then be responsible for converting this state into a ratatui widget.
+
+    input.rs: Manages the state of the keyboard keys.
+
+    timer.rs: Manages the delay and sound timers.
+
+By passing references between these modules when needed (e.g., cpu.execute_opcode(&mut self.memory, &mut self.gpu)), you maintain a clean, central control flow within the Emu struct. This approach is highly maintainable because you can easily trace the flow of data and logic, and each component can be tested independently.
+```
+
 The project is organized into the following modules:
 
 - chip8
