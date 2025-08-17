@@ -9,12 +9,21 @@ use color_eyre::{eyre::eyre, Result};
 
 mod emojis;
 mod emu;
+use crossterm::event::DisableMouseCapture;
+use crossterm::event::EnableMouseCapture;
+use crossterm::execute;
+use crossterm::terminal::disable_raw_mode;
+use crossterm::terminal::enable_raw_mode;
+use crossterm::terminal::EnterAlternateScreen;
+use crossterm::terminal::LeaveAlternateScreen;
 use emu::Emulator;
 
-use emojis::EMOJIS as E; // Avoid Emoji Nightmares
+use emojis::EMOJIS as E;
+use ratatui::DefaultTerminal; // Avoid Emoji Nightmares
 use std::env::args;
 use std::env::temp_dir;
 use std::fs::read;
+use std::io::stdout;
 use tui_logger::{
     init_logger, set_default_level, set_log_file, TuiLoggerFile, TuiLoggerLevelOutput,
 };
@@ -47,7 +56,7 @@ fn setup_logging() -> Result<()> {
 // -------------------------------------------
 
 /// Initialize the terminal
-fn initTerminal() -> io::Result<DefaultTerminal> {
+fn init_terminal() -> Result<DefaultTerminal> {
     trace!(target:"tui", "Initializing terminal");
     enable_raw_mode()?; // takes input w/o w8n 4 newline, prevents keys being echo'd back
     execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
@@ -58,7 +67,7 @@ fn initTerminal() -> io::Result<DefaultTerminal> {
 }
 
 /// Restore the terminal to its original state
-restoreTerminal() -> io::Result<()> {
+fn restore_terminal() -> Result<()> {
     trace!(target:"tui", "Restoring terminal");
     disable_raw_mode()?;
     execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
@@ -68,7 +77,7 @@ restoreTerminal() -> io::Result<()> {
 fn set_panic_hook() {
     let hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
-        let _ = restore();
+        let _ = restore_terminal();
         hook(panic_info);
     }))
 }
@@ -88,15 +97,13 @@ fn main() -> Result<()> {
         .ok_or(eyre!("Please provide a path to a ROM file"))?;
 
     info!("\t{} Reading rom {}...", E["eye"], rom_path);
-    let rom_data = read(rom_path)
-        .expect(&format!("Could not read ROM file from: {}", rom_path));
-
+    let rom_data = read(rom_path).expect(&format!("Could not read ROM file from: {}", rom_path));
 
     info!("\t{} Loading rom into emulator...", E["joystick"]);
     emu.load_rom(&rom_data);
 
     info!("\t{} Running app...", E["runner"]);
-    let mut terminal = initTerminal();
+    let mut terminal = init_terminal();
     emu.run(terminal);
 
     info!("{} Exiting...", E["handwave"]);
