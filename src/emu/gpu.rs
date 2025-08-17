@@ -1,21 +1,5 @@
 // I am thinking of making this a layer between the App and the Ratatui
 // Contains the graphics processing.
-use color_eyre::{
-    eyre::{bail, WrapErr},
-    Report, Result,
-};
-use std::time::{self, Duration};
-
-use crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-};
-
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
-};
-
-use crossterm::execute;
-
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -30,31 +14,21 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 
-use tui_logger::{ExtLogRecord, LevelFilter, LogFormatter, TuiWidgetEvent, TuiWidgetState};
-
-use std::io::{self, stdout};
-use std::sync::mpsc;
-use std::thread;
-
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
 
 #[derive(Debug)]
 pub struct Gpu {
-    pub counter: u8,
     pub screen: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
 }
 
 //--------------------------------------------------------------
 // Gpu
-// Part of the App.
-// Struggling with if this name and purpose;
-// is this the monitor, the GPU, or something else?
+// Here be graphics processing
 //--------------------------------------------------------------
 impl Gpu {
     pub fn new() -> Self {
         Self {
-            counter: 0,
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
     }
@@ -84,64 +58,10 @@ impl Gpu {
     //    }
     //}
 
-    pub fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<u8> {
-        match key_event.code {
-            KeyCode::Char('0') => {
-                //TODO: figure out what i was doing here self.exit();
-                return Ok(255);
-            }
-            KeyCode::Left => {
-                self.decrement_counter()?;
-                return Ok(254);
-            }
-            KeyCode::Right => {
-                self.increment_counter()?;
-                return Ok(253);
-            }
-
-            // Chip8 valid 16 chars
-            KeyCode::Char('1') => Ok::<u8, Report>(0),
-            KeyCode::Char('2') => Ok(1),
-            KeyCode::Char('3') => Ok(2),
-            KeyCode::Char('4') => Ok(3),
-            KeyCode::Char('q') => Ok(4),
-            KeyCode::Char('w') => Ok(5),
-            KeyCode::Char('e') => Ok(6),
-            KeyCode::Char('r') => Ok(7),
-            KeyCode::Char('a') => Ok(8),
-            KeyCode::Char('s') => Ok(9),
-            KeyCode::Char('d') => Ok(10),
-            KeyCode::Char('f') => Ok(11),
-            KeyCode::Char('z') => Ok(12),
-            KeyCode::Char('x') => Ok(13),
-            KeyCode::Char('c') => Ok(14),
-            KeyCode::Char('v') => Ok(15),
-            _ => Ok(222),
-        }
-        //Ok(111)
-    }
-
-    //fn exit(&mut self) {
-    //    self.exit = true;
-    //}
-
-    // galus: There is an overflow bug here left for educational porpoises 🎓 🐬
-    fn increment_counter(&mut self) -> Result<()> {
-        self.counter += 1;
-        if self.counter > 2 {
-            bail!("counter overflow");
-        }
-        Ok(())
-    }
-
-    fn decrement_counter(&mut self) -> Result<()> {
-        self.counter -= 1;
-        Ok(())
-    }
-
     fn content(&self) -> impl Widget + '_ {
-        let mut screen = self.screen.clone();
-        screen[1000..1099].copy_from_slice(&[true; 99]);
+        let screen_ref = &self.screen;
+        //let mut screen = self.screen.clone();
+        //screen[1000..1099].copy_from_slice(&[true; 99]);
 
         let canvas = Canvas::default()
             .marker(Marker::Block)
@@ -152,7 +72,7 @@ impl Gpu {
                 for y in 0..SCREEN_HEIGHT {
                     for x in 0..SCREEN_WIDTH {
                         let index = y * SCREEN_WIDTH + x;
-                        if screen[index] {
+                        if screen_ref[index] {
                             ctx.draw(&Rectangle {
                                 x: x as f64,
                                 y: y as f64,
@@ -375,108 +295,6 @@ impl Widget for &App {
 //
 //    Ok(())
 //}
-
-// -------------------------------------------
-// Utility
-// Terminal Managment Functions
-// -------------------------------------------
-
-/// Initialize the terminal
-pub fn init() -> io::Result<DefaultTerminal> {
-    trace!(target:"tui", "Initializing terminal");
-    enable_raw_mode()?; // takes input w/o w8n 4 newline, prevents keys being echo'd back
-    execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-    set_panic_hook();
-
-    let mut terminal = ratatui::init(); // ratatui.rs has 'let mut terminal'
-    Ok(terminal)
-}
-
-/// Restore the terminal to its original state
-pub fn restore() -> io::Result<()> {
-    trace!(target:"tui", "Restoring terminal");
-    disable_raw_mode()?;
-    execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
-    Ok(())
-}
-
-fn set_panic_hook() {
-    let hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |panic_info| {
-        let _ = restore();
-        hook(panic_info);
-    }))
-}
-
-// -------------------------------------------
-// Threads
-// Separate threads for background tasks.
-// -------------------------------------------
-
-/// Responsible for handling user input
-fn input_thread(tx: mpsc::Sender<AppEvent>) -> Result<()> {
-    loop {
-        match event::read() {
-            Ok(event) => {
-                if let Event::Key(key) = event {
-                    if key.kind == KeyEventKind::Press {
-                        if tx.send(AppEvent::UiEvent(event)).is_err() {
-                            break;
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("Error reading event: {}", e);
-                break;
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Sends AppEvent::CounterChanged events at constant intervals
-fn progress_task(tx: mpsc::Sender<AppEvent>) -> Result<()> {
-    info!(target: "progress-task", "Starting progress task...");
-    for progress in 0..100 {
-        tx.send(AppEvent::CounterChanged(Some(progress)))?;
-        thread::sleep(Duration::from_millis(3000));
-    }
-    info!(target: "progress-task", "Progress task finished!");
-    tx.send(AppEvent::CounterChanged(None))?;
-    Ok(())
-}
-
-/// Spams a bunch of logs every second
-fn background_task() {
-    loop {
-        error!(target: "background-task", "an error");
-        warn!(target: "background-task", "an warning");
-        info!(target: "background-task", "an two line info\nsecond line");
-        debug!(target: "background-task", "an debug");
-        trace!(target: "background-task", "an trace");
-        error!(target: "background-task", "an error");
-        thread::sleep(Duration::from_millis(1000));
-    }
-}
-
-/// Spams a long log message every second
-fn background_task2() {
-    loop {
-        info!(target: "background-task2", "This is a very long message, blah di blah di blah, lets wrap this up with some screen size magic.");
-        thread::sleep(Duration::from_millis(1000));
-    }
-}
-
-/// Spams hearts <3 every 1.5 seconds
-fn heart_task() {
-    let mut line = "<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3<3".to_string();
-    loop {
-        info!(target: "heart-task", "{}", line);
-        line = format!(".{}", line);
-        thread::sleep(time::Duration::from_millis(1500));
-    }
-}
 
 //--------------------------------------------------------------
 // Logging

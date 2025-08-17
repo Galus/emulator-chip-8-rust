@@ -27,10 +27,9 @@ pub struct Cpu {
     pub delay_timer: u8,
     pub sound_timer: u8,
 
-    pub keypad: [bool; 16],
+    //pub keypad: [bool; 16],
     //pub rom_buffer: Vec<u8>, // moved to self.memory.rom
-    pub running: bool,
-
+    //pub running: bool,
     /// Memory Map:
     /// +---------------+= 0xFFF (4095) End of Chip-8 RAM
     /// |               |
@@ -70,9 +69,9 @@ impl Cpu {
             stack_pointer: 0,
             delay_timer: 0,
             sound_timer: 0,
-            keypad: [false; 16],
+            //keypad: [false; 16],
             //rom_buffer: Vec::new(), // Moved into 'memory' as 'rom'
-            running: false,
+            //running: false,
         }
     }
 

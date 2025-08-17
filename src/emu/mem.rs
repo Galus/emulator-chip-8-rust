@@ -11,42 +11,52 @@ https://github.com/mattmikolay/chip-8/wiki/CHIP%E2%80%908-Technical-Reference#re
 */
 
 pub const RAM_SIZE: usize = 4096;
-pub const ROM_MAX_SIZE: usize = RAM_SIZE - 512;
+pub const ROM_START_ADDRESS: usize = 0x200; // 512
+pub const ROM_MAX_SIZE: usize = RAM_SIZE - ROM_START_ADDRESS;
+pub const FONT_AMX_SIZE: usize = 80;
 
 #[derive(Debug)]
 pub struct Memory {
-    pub delay_timer: Timer,
-    pub gpu: Gpu,
-    pub pad: Keypad,
     pub ram: [u8; RAM_SIZE],
-    pub rom: Vec<u8>,
-    pub sound_timer: Timer,
 }
 
 impl Default for Memory {
     fn default() -> Self {
-        Self {
-            delay_timer: Timer::new(),
-            gpu: Gpu::new(),
-            pad: Keypad::new(),
-            ram: [0; RAM_SIZE],
-            rom: vec![0; ROM_MAX_SIZE],
-            sound_timer: Timer::new(),
-        }
+        Self { ram: [0; RAM_SIZE] }
     }
 }
 
 impl Memory {
-    pub fn new(dt: Timer, gpu: Gpu, pad: Keypad, rom: Vec<u8>, st: Timer) -> Self {
-        Self {
-            delay_timer: dt,
-            ram: [0; 4096],
-            gpu,
-            pad,
-            rom,
-            sound_timer: st,
-        }
+    pub fn new() -> Self {
+        let mut new_memory = Self::default();
+        new_memory.load_font()
     }
+
+    pub fn load_font(&mut self) {
+        assert!(
+            FONT.len() <= FONT_MAX_SIZE,
+            "FONT size ({}) exceeds max allowed dize ({}).",
+            FONT.len(),
+            FONT_MAX_SIZE
+        );
+        self.memory.ram[0..FONT.len()].copy_from_slice(&FONTS);
+    }
+
+    // Loads ROM bytes into RAM
+    pub fn load_rom(&mut self, rom_data: &[u8]) {
+        assert!(
+            rom_data.len() <= ROM_MAX_SIZE,
+            "ROM size ({}) exceeds max allowed size ({}).",
+            rom_data.len(),
+            ROM_MAX_SIZE
+        );
+
+        // Copy ROM bytes into RAM, starting at 0x200
+        let start = ROM_START_ADDRESS;
+        let end = ROM_START_ADDRESS + rom_data.len();
+        self.ram[start..end].copy_from_slice(rom_data);
+    }
+
     pub fn print_memory(&self) {
         for (i, byte) in self.ram.iter().enumerate() {
             if i % 16 == 0 {

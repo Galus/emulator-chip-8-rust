@@ -21,6 +21,7 @@ use tui_logger::{
 
 #[macro_use]
 extern crate log;
+use log::{debug, info};
 
 fn setup_logging() -> Result<()> {
     init_logger(log::LevelFilter::Trace).unwrap();
@@ -40,52 +41,64 @@ fn setup_logging() -> Result<()> {
     Ok(())
 }
 
+// -------------------------------------------
+// Utility
+// Terminal Managment Functions
+// -------------------------------------------
+
+/// Initialize the terminal
+fn initTerminal() -> io::Result<DefaultTerminal> {
+    trace!(target:"tui", "Initializing terminal");
+    enable_raw_mode()?; // takes input w/o w8n 4 newline, prevents keys being echo'd back
+    execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+    set_panic_hook();
+
+    let mut terminal = ratatui::init(); // ratatui.rs has 'let mut terminal'
+    Ok(terminal)
+}
+
+/// Restore the terminal to its original state
+restoreTerminal() -> io::Result<()> {
+    trace!(target:"tui", "Restoring terminal");
+    disable_raw_mode()?;
+    execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+    Ok(())
+}
+
+fn set_panic_hook() {
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let _ = restore();
+        hook(panic_info);
+    }))
+}
+
 fn main() -> Result<()> {
     color_eyre::install()?; // error hooks
     setup_logging()?;
 
-    println!("{} Initializing emulator", E["dynamite"]);
+    info!("{} Initializing emulator", E["dynamite"]);
     let mut emu: Emulator = Emulator::new();
 
-    println!("\t{} Loading fonts into emulator...", E["pen"]);
+    info!("\t{} Loading fonts into emulator...", E["pen"]);
     let _ = emu.load_font();
 
     let rom_path: String = args()
         .nth(1)
         .ok_or(eyre!("Please provide a path to a ROM file"))?;
 
-    println!("\t{} Reading rom {}...", E["eye"], rom_path);
-    let rom_data = read(rom_path)?;
-    emu.cpu.memory.rom = rom_data;
+    info!("\t{} Reading rom {}...", E["eye"], rom_path);
+    let rom_data = read(rom_path)
+        .expect(&format!("Could not read ROM file from: {}", rom_path));
 
-    println!("\t{} Loading rom into emulator...", E["joystick"]);
-    let _ = emu.load_rom(); // clears emu.rom_buffer
 
-    println!("\t{} Initializing terminal...", E["computer"]);
-    let mut terminal = emu::gpu::init()?;
+    info!("\t{} Loading rom into emulator...", E["joystick"]);
+    emu.load_rom(&rom_data);
 
-    println!("\t{} Running app...", E["runner"]);
-    emu.run();
+    info!("\t{} Running app...", E["runner"]);
+    let mut terminal = initTerminal();
+    emu.run(terminal);
 
-    //loop {
-    //    let _ = emu.cpu.fetch_opcode();
-    //    if let Err(err) = emu.cpu.process() {
-    //        eprintln!("failed to process.: {}", err);
-    //        break;
-    //    }
-    //
-    //    emu.cpu.memory.gpu.run(&mut terminal)?;
-    //
-    //    break;
-    //}
-
-    if let Err(err) = emu::gpu::restore() {
-        eprintln!(
-            "failed to restore terminal. Run `reset` or restart your terminal to recover: {}",
-            err
-        );
-    }
-
-    println!("{} Exiting...", E["handwave"]);
+    info!("{} Exiting...", E["handwave"]);
     Ok(())
 }
