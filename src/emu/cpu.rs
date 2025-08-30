@@ -47,17 +47,12 @@ impl Cpu {
         self.current_opcode = OpCode(opcode);
     }
 
-    pub fn process(
-        &mut self,
-        memory: &mut Memory,
-        gpu: &mut Gpu,
-        timers: &mut Timer,
-    ) -> Result<()> {
+    pub fn process(&mut self, memory: &mut Memory, gpu: &mut Gpu) -> Result<()> {
         // Map the current OpCode to an actual function.
         // DECODE and Process
         match &self.current_opcode.into_tuple() {
             (0, 0, 0xE, 0xE) => OpCode::_00ee(self),
-            (0, 0, 0xE, 0) => OpCode::_00e0(&mut self.memory.gpu),
+            (0, 0, 0xE, 0) => OpCode::_00e0(gpu),
             (0, _, _, _) => OpCode::_0nnn(self),
             (1, _, _, _) => OpCode::_1nnn(self),
             (2, _, _, _) => OpCode::_2nnn(self),
@@ -97,9 +92,9 @@ impl Cpu {
     }
 
     // main emulation loop tick - fetches & processes a single opcode
-    pub fn tick(self, memory: &mut Memory, gpu: &mut Gpu, timers: &mut Timer) -> Result<()> {
+    pub fn tick(&mut self, memory: &mut Memory, gpu: &mut Gpu) -> Result<()> {
         let _ = self.fetch_opcode(memory);
-        if let Err(err) = self.process(memory, gpu, timers) {
+        if let Err(err) = self.process(memory, gpu) {
             eprintln!("failed to process.: {}", err);
         }
         Ok(())
@@ -111,6 +106,7 @@ mod cputests {
     use crate::emu::cpu::Cpu;
     //use crate::emu::cpu::OpCode;
     use crate::emu::iset::OpCode;
+    use crate::emu::Gpu;
     use crate::emu::Memory;
 
     /// Creates a dummy cpu with:
@@ -127,7 +123,8 @@ mod cputests {
     ///cpu.registers[12] = 0x11;
     ///cpu.index_register = 0x200;
     ///```
-    fn test_init_cpu() -> Cpu {
+
+    fn test_init_mem() -> Memory {
         let mut mem = Memory::default();
 
         // create some fake memory
@@ -136,7 +133,10 @@ mod cputests {
         mem.ram[0x202] = 3;
         mem.ram[0x203] = 4;
         mem.ram[0x204] = 5;
+        mem
+    }
 
+    fn test_init_cpu() -> Cpu {
         let mut cpu = Cpu::new();
 
         // random registers populated
@@ -150,88 +150,91 @@ mod cputests {
         cpu
     }
 
+    fn test_init_gpu() -> Gpu {
+        let gpu = Gpu::new();
+
+        gpu
+    }
+
     #[test]
     fn test_fx55() {
         let mut cpu = test_init_cpu();
+        let mut mem = test_init_mem();
         cpu.current_opcode = OpCode(0xF555);
 
         // memory should be 1-7 at 0x200-206
-        cpu.memory.ram[0x205] = 6;
-        cpu.memory.ram[0x206] = 7;
+        mem.ram[0x205] = 6;
+        mem.ram[0x206] = 7;
 
-        assert_eq!(cpu.memory.ram[0x200], 1);
-        assert_eq!(cpu.memory.ram[0x201], 2);
-        assert_eq!(cpu.memory.ram[0x202], 3);
-        assert_eq!(cpu.memory.ram[0x203], 4);
-        assert_eq!(cpu.memory.ram[0x204], 5);
-        assert_eq!(cpu.memory.ram[0x205], 6);
-        assert_eq!(cpu.memory.ram[0x206], 7);
+        assert_eq!(mem.ram[0x200], 1);
+        assert_eq!(mem.ram[0x201], 2);
+        assert_eq!(mem.ram[0x202], 3);
+        assert_eq!(mem.ram[0x203], 4);
+        assert_eq!(mem.ram[0x204], 5);
+        assert_eq!(mem.ram[0x205], 6);
+        assert_eq!(mem.ram[0x206], 7);
 
         OpCode::fx55(&mut cpu);
 
         // our x was 5, v0..vx needs to get set with I..I+x
-        assert_eq!(cpu.memory.ram[0x200], cpu.registers[0]);
-        assert_eq!(cpu.memory.ram[0x201], cpu.registers[1]);
-        assert_eq!(cpu.memory.ram[0x202], cpu.registers[2]);
-        assert_eq!(cpu.memory.ram[0x203], cpu.registers[3]);
-        assert_eq!(cpu.memory.ram[0x204], cpu.registers[4]);
-        assert_eq!(cpu.memory.ram[0x205], cpu.registers[5]);
+        assert_eq!(mem.ram[0x200], cpu.registers[0]);
+        assert_eq!(mem.ram[0x201], cpu.registers[1]);
+        assert_eq!(mem.ram[0x202], cpu.registers[2]);
+        assert_eq!(mem.ram[0x203], cpu.registers[3]);
+        assert_eq!(mem.ram[0x204], cpu.registers[4]);
+        assert_eq!(mem.ram[0x205], cpu.registers[5]);
 
         // this next cpu.memoryory address shouldnt have been affected by 0xF555 b/c x=5
-        assert_ne!(cpu.memory.ram[0x206], cpu.registers[6]);
-        assert_eq!(cpu.memory.ram[0x206], 7);
+        assert_ne!(mem.ram[0x206], cpu.registers[6]);
+        assert_eq!(mem.ram[0x206], 7);
     }
 
     #[test]
     fn test_fx65() {
         let mut cpu = test_init_cpu();
+        let mut mem = test_init_mem();
         cpu.current_opcode = OpCode(0xF565);
 
         // setting up data to check for out of bounds bugs
-        (cpu.memory.ram[0x206], cpu.registers[6]) = (0xDE, 0xAD);
+        (mem.ram[0x206], cpu.registers[6]) = (0xDE, 0xAD);
 
         OpCode::fx65(&mut cpu);
         // our x was 5, v0..vx needs to get set with I..I+x
-        assert_eq!(cpu.memory.ram[0x200], cpu.registers[0]);
-        assert_eq!(cpu.memory.ram[0x201], cpu.registers[1]);
-        assert_eq!(cpu.memory.ram[0x202], cpu.registers[2]);
-        assert_eq!(cpu.memory.ram[0x203], cpu.registers[3]);
-        assert_eq!(cpu.memory.ram[0x204], cpu.registers[4]);
-        assert_eq!(cpu.memory.ram[0x205], cpu.registers[5]);
-        assert_ne!(cpu.memory.ram[0x206], cpu.registers[6]);
+        assert_eq!(mem.ram[0x200], cpu.registers[0]);
+        assert_eq!(mem.ram[0x201], cpu.registers[1]);
+        assert_eq!(mem.ram[0x202], cpu.registers[2]);
+        assert_eq!(mem.ram[0x203], cpu.registers[3]);
+        assert_eq!(mem.ram[0x204], cpu.registers[4]);
+        assert_eq!(mem.ram[0x205], cpu.registers[5]);
+        assert_ne!(mem.ram[0x206], cpu.registers[6]);
     }
 
     #[test]
     fn test_fx33() {
         let mut cpu = test_init_cpu();
+        let mut mem = test_init_mem();
         cpu.current_opcode = OpCode(0xF533);
         cpu.registers[5] = 105;
         cpu.index_register = 0x200; // unnecessary but oh well...
 
         // Test init wierd mishaps
-        assert_eq!(cpu.memory.ram[cpu.index_register as usize], 1); // init'd by test_init_cpu
-        assert_eq!(cpu.memory.ram[(cpu.index_register + 1) as usize], 2);
-        assert_eq!(cpu.memory.ram[(cpu.index_register + 2) as usize], 3);
+        assert_eq!(mem.ram[cpu.index_register as usize], 1); // init'd by test_init_cpu
+        assert_eq!(mem.ram[(cpu.index_register + 1) as usize], 2);
+        assert_eq!(mem.ram[(cpu.index_register + 2) as usize], 3);
         println!("index_register: {:?}", cpu.index_register);
         let idxr: usize = cpu.index_register as usize;
-        println!(
-            "memory.data[ir..ir+3]: {:x?}",
-            &cpu.memory.ram[(idxr)..(idxr + 3)]
-        );
+        println!("memory.data[ir..ir+3]: {:x?}", &mem.ram[(idxr)..(idxr + 3)]);
 
         // Test fx33
         OpCode::fx33(&mut cpu);
-        println!(
-            "memory.data[ir..ir+3]: {:x?}",
-            &cpu.memory.ram[(idxr)..(idxr + 3)]
-        );
+        println!("memory.data[ir..ir+3]: {:x?}", &mem.ram[(idxr)..(idxr + 3)]);
 
-        assert_eq!(cpu.memory.ram[cpu.index_register as usize], 1);
-        assert_eq!(cpu.memory.ram[(cpu.index_register + 1) as usize], 0);
-        assert_eq!(cpu.memory.ram[(cpu.index_register + 2) as usize], 5);
+        assert_eq!(mem.ram[cpu.index_register as usize], 1);
+        assert_eq!(mem.ram[(cpu.index_register + 1) as usize], 0);
+        assert_eq!(mem.ram[(cpu.index_register + 2) as usize], 5);
 
         //println!("{:x?}", &emu.memory);
-        //assert_eq!(cpu.memory.ram[(cpu.index_register + 2) as usize], 8);
+        //assert_eq!(mem.ram[(cpu.index_register + 2) as usize], 8);
     }
 
     #[test]
@@ -271,6 +274,8 @@ mod cputests {
     #[test]
     fn test_dxyn() {
         let mut cpu = test_init_cpu();
+        let mut mem = test_init_mem();
+        let mut gpu = test_init_gpu();
         let old_vf = cpu.registers[0xF];
         // assert old_vf is not set
         assert_eq!(old_vf, 0);
@@ -279,18 +284,18 @@ mod cputests {
         // assert blank screen
         const W: usize = 64;
         const H: usize = 32;
-        assert_eq!(cpu.memory.gpu.screen, [false; W * H]);
+        assert_eq!(gpu.screen, [false; W * H]);
 
         // Setup some existing screen data
         // lets draw '1111 0001' in the middle of second row
         //    Calc the offset
         let offset = W + (W / 2);
-        cpu.memory.gpu.screen[offset..(offset + 4)].fill(true);
-        cpu.memory.gpu.screen[offset + 7] = true;
+        gpu.screen[offset..(offset + 4)].fill(true);
+        gpu.screen[offset + 7] = true;
         println!("Second row filled with '1111 0001' somewhere...");
-        println!("{:x?}", cpu.memory.gpu.screen.map(|bool| bool as u32));
+        println!("{:x?}", gpu.screen.map(|bool| bool as u32));
         assert_eq!(
-            cpu.memory.gpu.screen[offset..(offset + 8)],
+            gpu.screen[offset..(offset + 8)],
             [true, true, true, true, false, false, false, true]
         );
 
@@ -311,11 +316,11 @@ mod cputests {
         // Put these bytes into the instruction memory somewhere, lets say 1337 :)
         // 1337 = 0b10100111001, this requires 11 bits, index_register holds up to 12
         cpu.index_register = 1337;
-        cpu.memory.ram[cpu.index_register as usize] = pixel_byte1_u8;
-        cpu.memory.ram[(cpu.index_register as usize) + 1] = pixel_byte2_u8;
+        mem.ram[cpu.index_register as usize] = pixel_byte1_u8;
+        mem.ram[(cpu.index_register as usize) + 1] = pixel_byte2_u8;
         // This actuall happens to show up as '0xaa' t,f,t,f,t,f,t,f = 1010 1010 = 0xa 0xa
         println!("ram:");
-        println!("{:x?}", cpu.memory.ram.map(|u| u as u8));
+        println!("{:x?}", mem.ram.map(|u| u as u8));
 
         // Lets draw into an unset, blank, area and make sure vF is 0
         // ...draw at the bottom-right of the screen (64x32) -> 48,30
@@ -326,16 +331,16 @@ mod cputests {
         cpu.registers[4] = VX;
         cpu.registers[3] = VY;
         println!("screen (before writing to bottom-right of screen):");
-        println!("{:x?}", cpu.memory.gpu.screen.map(|bool| bool as u8));
+        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
         OpCode::dxyn(&mut cpu);
         println!("screen (after writing to bottom-right of screen):");
-        println!("{:x?}", cpu.memory.gpu.screen.map(|bool| bool as u8));
+        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
         assert_eq!(cpu.registers[0xF], 0); // see if the unset flag in vF remained at 0
 
         // calculate offset in screen for this bottom-right test
         let offset = W.wrapping_mul(VY as usize) + VX as usize;
-        assert_eq!(cpu.memory.gpu.screen[offset..offset + 8], pixel_byte1);
-        assert_eq!(cpu.memory.gpu.screen[offset + 8..offset + 16], pixel_byte2);
+        assert_eq!(gpu.screen[offset..offset + 8], pixel_byte1);
+        assert_eq!(gpu.screen[offset + 8..offset + 16], pixel_byte2);
 
         // Lets draw into an already populated set portion of the screen
         // ... At position 96 we have our first set pixel.
@@ -354,7 +359,7 @@ mod cputests {
 
         OpCode::dxyn(&mut cpu);
         println!("screen (after overwriting the second-rows set pixels):");
-        println!("{:x?}", cpu.memory.gpu.screen.map(|bool| bool as u8));
+        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
 
         // Remember, pixels are xor'd, you cant assume the screen will have the exact pixel bytes
         // ...                 if existing pixels = 1111 0001
@@ -363,7 +368,7 @@ mod cputests {
         let expected_screen_after_xor_pixel_byte1 =
             [false, true, false, true, true, false, true, true];
         assert_eq!(
-            cpu.memory.gpu.screen[offset..offset + 8],
+            gpu.screen[offset..offset + 8],
             expected_screen_after_xor_pixel_byte1
         );
 
@@ -373,7 +378,7 @@ mod cputests {
         let expected_screen_after_xor_pixel_byte2 =
             [false, false, false, false, false, false, false, false];
         assert_eq!(
-            cpu.memory.gpu.screen[offset + 8..offset + 16],
+            gpu.screen[offset + 8..offset + 16],
             expected_screen_after_xor_pixel_byte2
         );
 

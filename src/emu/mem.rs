@@ -34,7 +34,7 @@ https://github.com/mattmikolay/chip-8/wiki/CHIP%E2%80%908-Technical-Reference#re
 pub const RAM_SIZE: usize = 4096;
 pub const ROM_START_ADDRESS: usize = 0x200; // 512
 pub const ROM_MAX_SIZE: usize = RAM_SIZE - ROM_START_ADDRESS;
-pub const FONT_AMX_SIZE: usize = 80;
+pub const FONT_MAX_SIZE: usize = 80;
 
 #[derive(Debug)]
 pub struct Memory {
@@ -50,17 +50,18 @@ impl Default for Memory {
 impl Memory {
     pub fn new() -> Self {
         let mut new_memory = Self::default();
-        new_memory.load_font()
+        new_memory.load_font();
+        new_memory
     }
 
     pub fn load_font(&mut self) {
         assert!(
-            FONT.len() <= FONT_MAX_SIZE,
+            FONTS.len() <= FONT_MAX_SIZE,
             "FONT size ({}) exceeds max allowed dize ({}).",
-            FONT.len(),
+            FONTS.len(),
             FONT_MAX_SIZE
         );
-        self.memory.ram[0..FONT.len()].copy_from_slice(&FONTS);
+        self.ram[0..FONTS.len()].copy_from_slice(&FONTS);
     }
 
     // Loads ROM bytes into RAM

@@ -90,7 +90,8 @@ fn main() -> Result<()> {
     let mut emu: Emulator = Emulator::new();
 
     info!("\t{} Loading fonts into emulator...", E["pen"]);
-    let _ = emu.load_font();
+    let _ = emu.memory.load_font();
+    return
 
     let rom_path: String = args()
         .nth(1)
@@ -103,8 +104,8 @@ fn main() -> Result<()> {
     emu.load_rom(&rom_data);
 
     info!("\t{} Running app...", E["runner"]);
-    let mut terminal = init_terminal();
-    emu.run(terminal);
+    let mut terminal = init_terminal().unwrap();
+    emu.run(&mut terminal);
 
     info!("{} Exiting...", E["handwave"]);
     Ok(())

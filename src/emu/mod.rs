@@ -28,7 +28,7 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct Emulator {
     pub cpu: Cpu,
     pub gpu: Gpu,
@@ -82,35 +82,53 @@ impl Emulator {
         info!("\t{} Running Emulator...", E["computer"]);
         let (tx, rx) = mpsc::channel();
         let event_tx = tx.clone();
+        let progress_tx = tx.clone();
         thread::spawn(move || input_thread(event_tx));
 
-        loop {
-            self.cpu.tick(&mut self.memory, &self.gpu);
-            self.timers.tick();
+        // for testing right now...
+        thread::spawn(move || progress_task(progress_tx));
 
-            if let Ok(event) = rx.try_recv() {
-                match event {
-                    AppEvent::UiEvent(e) => {
-                        self.handle_ui_event(e);
-                        if self.should_quit {
-                            return Ok(());
-                        }
-                    }
-                    AppEvent::CounterChanged(value) => {
-                        self.update_progress_bar(value);
-                    }
+        loop {
+            self.timers.tick();
+            self.cpu.tick(&mut self.memory, &mut self.gpu);
+
+            match rx.recv() {
+                Ok(AppEvent::UiEvent(event)) => {
+                    // if its q, quit
+                    info!("rx.recv got {:?}", event);
+                    break;
+                }
+                Ok(AppEvent::CounterChanged(x)) => {
+                    info!("counter changed {:?}", x);
+                }
+                Err(_) => {
+                    error!("Core thread Sender disconnected. Exitting.");
+                    break;
                 }
             }
+
+            //if let Ok(event) = rx.try_recv() {
+            //    match event {
+            //        AppEvent::UiEvent(e) => {
+            //            self.handle_ui_event(e);
+            //            if self.should_quit {
+            //                return Ok(());
+            //            }
+            //        }
+            //        AppEvent::CounterChanged(value) => {
+            //            self.update_progress_bar(value);
+            //        }
+            //    }
+            //}
+            //Err(err) = self.restoreTerminal() {
+            //    warn!(
+            //        "failed to restore terminal. Run `reset` or restart your terminal to recover: {}",
+            //        err
+            //    );
+            //}
             terminal.draw(|frame| {
                 self.draw(frame);
-            })
-        }
-
-        if let Err(err) = self.restoreTerminal() {
-            warn!(
-                "failed to restore terminal. Run `reset` or restart your terminal to recover: {}",
-                err
-            );
+            });
         }
         Ok(())
     }
@@ -185,15 +203,29 @@ impl Emulator {
 
     // galus: There is an overflow bug here left for educational porpoises 🎓 🐬
     fn increment_counter(&mut self) -> Result<()> {
-        self.counter += 1;
-        if self.counter > 2 {
-            bail!("counter overflow");
+        match self.progress_counter {
+            Some(value) => {
+                if value >= 2 {
+                    bail!("counter overflow");
+                }
+                self.progress_counter = Some(value + 1);
+            }
+            None => self.progress_counter = Some(1),
         }
         Ok(())
     }
 
     fn decrement_counter(&mut self) -> Result<()> {
-        self.counter -= 1;
+        match self.progress_counter {
+            Some(value) => {
+                if value > 0 {
+                    self.progress_counter = Some(value - 1);
+                }
+            }
+            None => {
+                // nothing
+            }
+        }
         Ok(())
     }
 } // end Impl Emulator

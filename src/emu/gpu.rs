@@ -1,5 +1,6 @@
 // I am thinking of making this a layer between the App and the Ratatui
 // Contains the graphics processing.
+use crossterm::event::Event;
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -11,8 +12,15 @@ use ratatui::{
         canvas::{Canvas, Rectangle},
         Block, Paragraph, Widget,
     },
-    DefaultTerminal, Frame,
+    DefaultTerminal,
 };
+use std::sync::mpsc;
+use tui_logger::LevelFilter;
+use tui_logger::TuiWidgetState;
+
+use tui_logger::{ExtLogRecord, LogFormatter, TuiWidgetEvent};
+
+use crate::emu::KeyCode;
 
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
