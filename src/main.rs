@@ -1,4 +1,4 @@
-// Copyright (c) 2024 galus. All Rights Reserved.
+// Copyright (c) 2024-2025 galus. All Rights Reserved.
 //    __                        _                                __
 //   / /_/\__        __ _  __ _| |_   _ ___             __/\__  / /
 //  / /\    /       / _` |/ _` | | | | / __|            \    / / /
@@ -91,21 +91,22 @@ fn main() -> Result<()> {
 
     info!("\t{} Loading fonts into emulator...", E["pen"]);
     let _ = emu.memory.load_font();
-    return
+    if 1 == 2 {
+        let rom_path: String = args()
+            .nth(1)
+            .ok_or(eyre!("Please provide a path to a ROM file"))?;
 
-    let rom_path: String = args()
-        .nth(1)
-        .ok_or(eyre!("Please provide a path to a ROM file"))?;
+        info!("\t{} Reading rom {}...", E["eye"], rom_path);
+        let rom_data =
+            read(&rom_path).expect(&format!("Could not read ROM file from: {}", rom_path));
 
-    info!("\t{} Reading rom {}...", E["eye"], rom_path);
-    let rom_data = read(rom_path).expect(&format!("Could not read ROM file from: {}", rom_path));
+        info!("\t{} Loading rom into emulator...", E["joystick"]);
+        emu.load_rom(&rom_data);
 
-    info!("\t{} Loading rom into emulator...", E["joystick"]);
-    emu.load_rom(&rom_data);
-
-    info!("\t{} Running app...", E["runner"]);
-    let mut terminal = init_terminal().unwrap();
-    emu.run(&mut terminal);
+        info!("\t{} Running app...", E["runner"]);
+        let mut terminal = init_terminal().unwrap();
+        emu.run(&mut terminal);
+    }
 
     info!("{} Exiting...", E["handwave"]);
     Ok(())

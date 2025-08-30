@@ -90,7 +90,8 @@ impl Emulator {
 
         loop {
             self.timers.tick();
-            self.cpu.tick(&mut self.memory, &mut self.gpu);
+            self.cpu
+                .tick(&mut self.memory, &mut self.gpu, &mut self.timers);
 
             match rx.recv() {
                 Ok(AppEvent::UiEvent(event)) => {

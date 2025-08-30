@@ -1,10 +1,9 @@
 // Contains the CPUs Registers, OpCodes, and their impls.
-use crate::emu::{
-    gpu::Gpu,
+use super::{
     iset::{Nibbles, OpCode},
-    mem::Memory,
     timer::Timer,
 };
+use crate::emu::{gpu::Gpu, mem::Memory};
 
 /// https://github.com/mattmikolay/chip-8/wiki/CHIP%E2%80%908-Instruction-Set
 use color_eyre::Result;
@@ -47,7 +46,12 @@ impl Cpu {
         self.current_opcode = OpCode(opcode);
     }
 
-    pub fn process(&mut self, memory: &mut Memory, gpu: &mut Gpu) -> Result<()> {
+    pub fn process(
+        &mut self,
+        memory: &mut Memory,
+        gpu: &mut Gpu,
+        timers: &mut Timer,
+    ) -> Result<()> {
         // Map the current OpCode to an actual function.
         // DECODE and Process
         match &self.current_opcode.into_tuple() {
@@ -74,27 +78,27 @@ impl Cpu {
             (0xA, _, _, _) => OpCode::annn(self),
             (0xB, _, _, _) => OpCode::bnnn(self),
             (0xC, _, _, _) => OpCode::cxnn(self),
-            (0xD, _, _, _) => OpCode::dxyn(self),
+            (0xD, _, _, _) => OpCode::dxyn(self, memory, gpu),
             (0xE, _, 9, 0xE) => OpCode::ex9e(self),
             (0xE, _, 0xA, 1) => OpCode::exa1(self),
-            (0xF, _, 0, 7) => OpCode::fx07(self),
-            (0xF, _, 0, 0xA) => OpCode::fx0a(self),
-            (0xF, _, 1, 5) => OpCode::fx15(self),
-            (0xF, _, 1, 8) => OpCode::fx18(self),
+            (0xF, _, 0, 7) => OpCode::fx07(self, timers),
+            (0xF, _, 0, 0xA) => OpCode::fx0a(self, gpu),
+            (0xF, _, 1, 5) => OpCode::fx15(self, timers),
+            (0xF, _, 1, 8) => OpCode::fx18(self, timers),
             (0xF, _, 1, 0xE) => OpCode::fx1e(self),
             (0xF, _, 2, 9) => OpCode::fx29(self),
-            (0xF, _, 3, 3) => OpCode::fx33(self),
-            (0xF, _, 5, 5) => OpCode::fx55(self),
-            (0xF, _, 6, 5) => OpCode::fx65(self),
+            (0xF, _, 3, 3) => OpCode::fx33(self, memory),
+            (0xF, _, 5, 5) => OpCode::fx55(self, memory),
+            (0xF, _, 6, 5) => OpCode::fx65(self, memory),
             (a, b, c, d) => println!("Not implemented {:x?}", (a, b, c, d)),
         }
         Ok(())
     }
 
     // main emulation loop tick - fetches & processes a single opcode
-    pub fn tick(&mut self, memory: &mut Memory, gpu: &mut Gpu) -> Result<()> {
+    pub fn tick(&mut self, memory: &mut Memory, gpu: &mut Gpu, timers: &mut Timer) -> Result<()> {
         let _ = self.fetch_opcode(memory);
-        if let Err(err) = self.process(memory, gpu) {
+        if let Err(err) = self.process(memory, gpu, timers) {
             eprintln!("failed to process.: {}", err);
         }
         Ok(())
@@ -174,7 +178,7 @@ mod cputests {
         assert_eq!(mem.ram[0x205], 6);
         assert_eq!(mem.ram[0x206], 7);
 
-        OpCode::fx55(&mut cpu);
+        OpCode::fx55(&mut cpu, &mut mem);
 
         // our x was 5, v0..vx needs to get set with I..I+x
         assert_eq!(mem.ram[0x200], cpu.registers[0]);
@@ -198,7 +202,7 @@ mod cputests {
         // setting up data to check for out of bounds bugs
         (mem.ram[0x206], cpu.registers[6]) = (0xDE, 0xAD);
 
-        OpCode::fx65(&mut cpu);
+        OpCode::fx65(&mut cpu, &mut mem);
         // our x was 5, v0..vx needs to get set with I..I+x
         assert_eq!(mem.ram[0x200], cpu.registers[0]);
         assert_eq!(mem.ram[0x201], cpu.registers[1]);
@@ -226,7 +230,7 @@ mod cputests {
         println!("memory.data[ir..ir+3]: {:x?}", &mem.ram[(idxr)..(idxr + 3)]);
 
         // Test fx33
-        OpCode::fx33(&mut cpu);
+        OpCode::fx33(&mut cpu, &mut mem);
         println!("memory.data[ir..ir+3]: {:x?}", &mem.ram[(idxr)..(idxr + 3)]);
 
         assert_eq!(mem.ram[cpu.index_register as usize], 1);
@@ -332,7 +336,7 @@ mod cputests {
         cpu.registers[3] = VY;
         println!("screen (before writing to bottom-right of screen):");
         println!("{:x?}", gpu.screen.map(|bool| bool as u8));
-        OpCode::dxyn(&mut cpu);
+        OpCode::dxyn(&mut cpu, &mem, &gpu);
         println!("screen (after writing to bottom-right of screen):");
         println!("{:x?}", gpu.screen.map(|bool| bool as u8));
         assert_eq!(cpu.registers[0xF], 0); // see if the unset flag in vF remained at 0
@@ -357,7 +361,7 @@ mod cputests {
         cpu.registers[0xA] = v_y as u8;
         cpu.current_opcode = OpCode(0xD8A2);
 
-        OpCode::dxyn(&mut cpu);
+        OpCode::dxyn(&mut cpu, &mem, &gpu);
         println!("screen (after overwriting the second-rows set pixels):");
         println!("{:x?}", gpu.screen.map(|bool| bool as u8));
 

@@ -1,4 +1,4 @@
-use super::{cpu::Cpu, gpu::Gpu};
+use super::{cpu::Cpu, gpu::Gpu, mem::Memory, timer::Timer};
 
 #[derive(Debug, Copy, Clone)]
 pub struct OpCode(pub u16);
@@ -6,11 +6,11 @@ impl OpCode {
     /// Fill registers v0 to vX inclusive.
     /// Sets I = I + X + 1
     /// The interpreter reads values from memory starting at location I into registers V0 through Vx.
-    pub fn fx65(cpu: &mut Cpu) {
+    pub fn fx65(cpu: &mut Cpu, mem: &Memory) {
         let num_registers = OpCode::get_x(&cpu);
         for x in 0..=num_registers {
             let load_index = cpu.index_register + (x as u16);
-            cpu.registers[x as usize] = cpu.memory.ram[load_index as usize]
+            cpu.registers[x as usize] = mem.ram[load_index as usize]
         }
         cpu.index_register += (num_registers + 1) as u16;
     }
@@ -18,11 +18,11 @@ impl OpCode {
     /// Store register vals v0 to vX inclusive in memory starting at address I.
     /// Sets I = I + X + 1
     /// Basically fx65 but instead of putting memory into registers, puts registers into memory.
-    pub fn fx55(cpu: &mut Cpu) {
+    pub fn fx55(cpu: &mut Cpu, mem: &mut Memory) {
         let num_registers = OpCode::get_x(&cpu);
         for x in 0..=num_registers {
             let load_index = cpu.index_register + (x as u16);
-            cpu.memory.ram[load_index as usize] = cpu.registers[x as usize];
+            mem.ram[load_index as usize] = cpu.registers[x as usize];
         }
         cpu.index_register += (num_registers + 1) as u16;
     }
@@ -32,7 +32,7 @@ impl OpCode {
     /// Stores the binary-coded decimal representation of VX, with the hundreds digit
     /// in memory at location in I, the tens digit at location I+1,
     /// and the ones digit at location I+2.[24]
-    pub fn fx33(cpu: &mut Cpu) {
+    pub fn fx33(cpu: &mut Cpu, mem: &mut Memory) {
         let x = OpCode::get_x(cpu);
         let register = cpu.registers[x as usize];
         let padded = format!("{:0>3}", register);
@@ -40,9 +40,9 @@ impl OpCode {
         let b: u8 = padded.chars().nth(1).unwrap() as u8 - 48;
         let c: u8 = padded.chars().nth(2).unwrap() as u8 - 48;
         let index = cpu.index_register as usize;
-        cpu.memory.ram[index] = a;
-        cpu.memory.ram[index + 1] = b;
-        cpu.memory.ram[index + 2] = c;
+        mem.ram[index] = a;
+        mem.ram[index + 1] = b;
+        mem.ram[index + 2] = c;
     }
 
     /// Set I to memory address of the sprite data corresponding to hex digit stored in register vX
@@ -64,44 +64,47 @@ impl OpCode {
     }
 
     /// Set the sound timer to value of register vX
-    pub fn fx18(cpu: &mut Cpu) {
+    pub fn fx18(cpu: &mut Cpu, timers: &mut Timer) {
         let x = OpCode::get_x(cpu);
         let vx = cpu.registers[x as usize];
-        cpu.sound_timer = vx;
+        timers.sound_timer = vx;
     }
 
     /// Set the delay timer to the value of register vX
-    pub fn fx15(cpu: &mut Cpu) {
+    pub fn fx15(cpu: &mut Cpu, timers: &mut Timer) {
         let x = OpCode::get_x(cpu);
         let vx = cpu.registers[x as usize];
-        cpu.delay_timer = vx;
+        timers.delay_timer = vx;
     }
 
     /// Wait for a keypress and store the result in register vX
-    pub fn fx0a(cpu: &mut Cpu) {
+    pub fn fx0a(cpu: &mut Cpu, _gpu: &Gpu) {
         // use ratatui::crossterm::terminal::{disable_raw_mode, enable_raw_mode};
         let x = OpCode::get_x(cpu);
         //let _ = enable_raw_mode();
-        let pressed_value = cpu.memory.gpu.handle_events().unwrap();
+        //TODO: figure it out
+        //let pressed_value = gpu.handle_events().unwrap();
+        let pressed_value = 414141;
         //let _ = disable_raw_mode();
         cpu.registers[x as usize] = pressed_value;
     }
 
-    /// fx0a but presses the 'x' key
-    pub fn fx0a_test(cpu: &mut Cpu) {
-        let x = OpCode::get_x(cpu);
-
-        use ratatui::crossterm::event::KeyCode;
-
-        let k = KeyCode::Char('x').into();
-        let whatisit = cpu.memory.gpu.handle_key_event(k).unwrap();
-        cpu.registers[x as usize] = whatisit;
-        assert_eq!(13, whatisit); // make sure our [1-4,q-r,a-f,z-v] maps to [0 - 16]
-    }
+    ///// fx0a but presses the 'x' key
+    //pub fn fx0a_test(cpu: &mut Cpu) {
+    //    // TODO: lets impl later
+    //    let x = OpCode::get_x(cpu);
+    //
+    //    use ratatui::crossterm::event::KeyCode;
+    //
+    //    let k = KeyCode::Char('x').into();
+    //    let whatisit = handle_key_event(k).unwrap();
+    //    cpu.registers[x as usize] = whatisit;
+    //    assert_eq!(13, whatisit); // make sure our [1-4,q-r,a-f,z-v] maps to [0 - 16]
+    //}
 
     /// Store the current value of the delay timer in register vX
-    pub fn fx07(cpu: &mut Cpu) {
-        let delay_timer = cpu.delay_timer;
+    pub fn fx07(cpu: &mut Cpu, timers: &Timer) {
+        let delay_timer = timers.delay_timer;
         let x = OpCode::get_x(cpu);
         cpu.registers[x as usize] = delay_timer;
     }
@@ -109,40 +112,42 @@ impl OpCode {
     /// Skip the following instruction if the key corresponding to
     /// the hex value currently stored in register vX is NOT pressed
     pub fn exa1(cpu: &mut Cpu) {
-        let x = OpCode::get_x(cpu);
-        let vx = cpu.registers[x as usize];
-        let pressed_value = cpu.memory.gpu.handle_events().unwrap();
-        if pressed_value != vx {
-            // skip instruction
-            cpu.program_counter += 2;
-        } else {
-            // dont skip
-        }
+        todo!("impl later");
+        //let x = OpCode::get_x(cpu);
+        //let vx = cpu.registers[x as usize];
+        //let pressed_value = cpu.memory.gpu.handle_events().unwrap();
+        //if pressed_value != vx {
+        //    // skip instruction
+        //    cpu.program_counter += 2;
+        //} else {
+        //    // dont skip
+        //}
     }
 
     /// Skip the following instruction if the key corresponding to
     /// the hex value currently stored in register vX is pressed
     pub fn ex9e(cpu: &mut Cpu) {
-        let x = OpCode::get_x(cpu);
-        let vx = cpu.registers[x as usize];
-        let pressed_value = cpu.memory.gpu.handle_events().unwrap();
-        if pressed_value == vx {
-            // skip instruction
-            cpu.program_counter += 2;
-        } else {
-            // dont skip
-            // galus note: I think that program counter being automatically incremented may
-            // start to cause problems... future galus will find out soonTm.
-        }
+        todo!("impl later");
+        //let x = OpCode::get_x(cpu);
+        //let vx = cpu.registers[x as usize];
+        //let pressed_value = cpu.memory.gpu.handle_events().unwrap();
+        //if pressed_value == vx {
+        //    // skip instruction
+        //    cpu.program_counter += 2;
+        //} else {
+        //    // dont skip
+        //    // galus note: I think that program counter being automatically incremented may
+        //    // start to cause problems... future galus will find out soonTm.
+        //}
     }
 
     /// Draw a sprite at position vX, vY with N bytes of sprite data starting at the address
     /// stored in I. Set vF to 01 if any set pixels are changed to unset, and 00 otherwise.
-    pub fn dxyn(cpu: &mut Cpu) {
+    pub fn dxyn(cpu: &mut Cpu, mem: &Memory, gpu: &mut Gpu) {
         let (_, x, y, n) = OpCode::into_tuple(&cpu.current_opcode);
         let start = cpu.index_register as usize;
         let end = start + (n as usize);
-        let sprite_data = &cpu.memory.ram[start..end];
+        let sprite_data = &mem.ram[start..end];
         let (vx, vy) = (
             cpu.registers[x as usize] as usize,
             cpu.registers[y as usize] as usize,
@@ -151,7 +156,7 @@ impl OpCode {
         // for each sprite byte
         for i in 0..n {
             let screen_start = screen_offset + (i as usize) * 8;
-            let old_pixels = &mut cpu.memory.gpu.screen[screen_start..(screen_start + 8)];
+            let old_pixels = &mut gpu.screen[screen_start..(screen_start + 8)];
             let sprite_byte = sprite_data[i as usize];
             let new_pixels: Vec<bool> = old_pixels
                 .iter()
