@@ -100,7 +100,7 @@ impl Gpu {
 impl Widget for &Gpu {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Title::from(Line::from(vec![
-            " Canvas ".bold(),
+            " GPU".bold(),
             "<3".red().bold(),
             " Galus ".bold(),
         ]));
@@ -115,7 +115,7 @@ impl Widget for &Gpu {
         ]));
 
         let block = Block::bordered()
-            .title(title.alignment(Alignment::Right))
+            .title(title.alignment(Alignment::Left))
             .title(
                 instructions
                     .alignment(Alignment::Center)
@@ -141,34 +141,6 @@ impl Widget for &Gpu {
         paragraph.render(chunks[0], buf);
         self.content().render(chunks[1], buf);
     }
-}
-
-//--------------------------------------------------------------
-// App
-// Core App Logic
-//--------------------------------------------------------------
-
-//#[derive(Debug)]
-struct App {
-    mode: AppMode,
-    states: Vec<TuiWidgetState>,
-    tab_names: Vec<&'static str>,
-    selected_tab: usize,
-    progress_counter: Option<u16>,
-    gpu: Gpu,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-enum AppMode {
-    #[default]
-    Run,
-    Quit,
-}
-
-#[derive(Debug)]
-enum AppEvent {
-    UiEvent(Event),
-    CounterChanged(Option<u16>),
 }
 
 impl App {
@@ -282,7 +254,7 @@ impl Widget for &App {
         self.gpu.render(chunks[0], buf);
 
         // renders the logger on the right
-        let log_block = Block::bordered().title("Log Output");
+        let log_block = Block::bordered().title("Logs");
         let log_content = Paragraph::new("Placeholder for log output");
         log_content.block(log_block).render(chunks[1], buf);
     }
