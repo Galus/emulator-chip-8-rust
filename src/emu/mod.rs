@@ -63,7 +63,7 @@ impl Emulator {
             gpu: Gpu::new(),
             memory: Memory::new(),
             keypad: Keypad::new(),
-            timers: Timer::new(99999),
+            timers: Timer::new(1),
             should_quit: false,
             // init tui state
             states: vec![

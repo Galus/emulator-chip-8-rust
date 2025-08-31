@@ -7,7 +7,13 @@ edition = "2021"
 color-eyre = "0.6.3"
 crossterm = "0.28.1"
 log = "0.4.27"
-phf = "0.12.1"
+phf = { version = "0.12.1", features = ["macros"] }
+phf_codegen = "0.13.1"
 rand = "0.8.5"
-ratatui = "0.29.0"
+ratatui = { version = "0.29.0", features = ["crossterm"]}
 tui-logger = "0.17.3"
+
+[features]
+feature_crossterm_or_termion_must_be_selected = []
+crossterm = ["ratatui/crossterm", "feature_crossterm_or_termion_must_be_selected"]
+termion = []

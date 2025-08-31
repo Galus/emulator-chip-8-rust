@@ -84,7 +84,7 @@ impl OpCode {
         //let _ = enable_raw_mode();
         //TODO: figure it out
         //let pressed_value = gpu.handle_events().unwrap();
-        let pressed_value = 414141;
+        let pressed_value = 111;
         //let _ = disable_raw_mode();
         cpu.registers[x as usize] = pressed_value;
     }

@@ -5,43 +5,49 @@
 // / / /_  _\      | (_| | (_| | | |_| \__ \            /_  _\/ /
 ///_/    \/         \__, |\__,_|_|\__,_|___/              \/ /_/
 //                  |___/
+#[macro_use]
+extern crate log;
+//use log::{debug, info, logger};
+use log::*;
+
+use ratatui::DefaultTerminal;
+
+use std::env::{args, current_dir};
+
+use tui_logger::*;
+//use tui_logger::{
+//    init_logger, set_default_level, set_log_file, TuiLoggerFile, TuiLoggerLevelOutput,
+//};
+
 use color_eyre::{eyre::eyre, Result};
 
 mod emojis;
 mod emu;
-use crossterm::event::DisableMouseCapture;
-use crossterm::event::EnableMouseCapture;
+
+use crossterm::event::{
+    DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
+};
 use crossterm::execute;
-use crossterm::terminal::disable_raw_mode;
-use crossterm::terminal::enable_raw_mode;
-use crossterm::terminal::EnterAlternateScreen;
-use crossterm::terminal::LeaveAlternateScreen;
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use emu::Emulator;
 
 use emojis::EMOJIS as E;
-use ratatui::DefaultTerminal; // Avoid Emoji Nightmares
-use std::env::args;
-use std::env::temp_dir;
 use std::fs::read;
 use std::io::stdout;
-use tui_logger::{
-    init_logger, set_default_level, set_log_file, TuiLoggerFile, TuiLoggerLevelOutput,
-};
-
-#[macro_use]
-extern crate log;
-use log::{debug, info};
 
 fn setup_logging() -> Result<()> {
     init_logger(log::LevelFilter::Trace).unwrap();
     set_default_level(log::LevelFilter::Trace);
 
-    let mut dir = temp_dir();
+    let mut dir = current_dir()?;
     dir.push("chip8.log");
     let dir_str = dir.to_str().ok_or(eyre!("Failed to get log file path"))?;
+    println!("log dir {}", dir_str);
     let file_options = TuiLoggerFile::new(dir_str)
         .output_level(Some(TuiLoggerLevelOutput::Abbreviated))
-        .output_file(false)
+        .output_file(true)
         .output_separator(':');
     set_log_file(file_options);
     debug!(target:"App", "Logging to {}", dir_str);
@@ -71,6 +77,7 @@ fn restore_terminal() -> Result<()> {
     trace!(target:"tui", "Restoring terminal");
     disable_raw_mode()?;
     execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+    ratatui::restore();
     Ok(())
 }
 
@@ -91,23 +98,27 @@ fn main() -> Result<()> {
 
     info!("\t{} Loading fonts into emulator...", E["pen"]);
     let _ = emu.memory.load_font();
-    if 1 == 2 {
-        let rom_path: String = args()
-            .nth(1)
-            .ok_or(eyre!("Please provide a path to a ROM file"))?;
 
-        info!("\t{} Reading rom {}...", E["eye"], rom_path);
-        let rom_data =
-            read(&rom_path).expect(&format!("Could not read ROM file from: {}", rom_path));
+    let rom_path: String = args()
+        .nth(1)
+        .ok_or(eyre!("Please provide a path to a ROM file"))?;
 
-        info!("\t{} Loading rom into emulator...", E["joystick"]);
-        emu.load_rom(&rom_data);
+    info!("\t{} Reading rom {}...", E["eye"], rom_path);
+    let rom_data = read(&rom_path).expect(&format!("Could not read ROM file from: {}", rom_path));
 
-        info!("\t{} Running app...", E["runner"]);
-        let mut terminal = init_terminal().unwrap();
-        emu.run(&mut terminal);
-    }
+    info!("\t{} Loading rom into emulator...", E["joystick"]);
+    let _ = emu.load_rom(&rom_data);
+
+    info!("\t{} Running app...", E["runner"]);
+    let mut terminal = init_terminal().unwrap();
+    let _ = emu.run(&mut terminal);
+    let _ = terminal.clear();
 
     info!("{} Exiting...", E["handwave"]);
+    let _ = restore_terminal();
+
+    // dont forget to flush ;)
+    log::logger().flush();
+
     Ok(())
 }

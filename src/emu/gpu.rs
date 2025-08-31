@@ -125,7 +125,8 @@ impl Widget for &Gpu {
 
         let counter_text = Text::from(vec![Line::from(vec![
             " Value: ".into(),
-            self.counter.to_string().yellow(),
+            " PROGRESS_COUNTER_PLACEHOLDER".to_string().yellow(),
+            //self.progress_counter.to_string().yellow(),
             " ".into(),
         ])]);
 
