@@ -17,18 +17,16 @@ use std::time::{self, Duration};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 use tui_logger::{
-    ExtLogRecord, LevelFilter, LogFormatter, TuiLoggerLevelOutput, TuiLoggerSmartWidget,
-    TuiWidgetState,
+    LevelFilter, TuiLoggerLevelOutput, TuiLoggerSmartWidget, TuiWidgetEvent, TuiWidgetState,
 };
 
 use std::sync::mpsc;
 use std::thread;
 
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout},
     style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Paragraph, Widget},
+    widgets::Widget,
     DefaultTerminal, Frame,
 };
 
@@ -46,6 +44,9 @@ pub struct Emulator {
     pub should_quit: bool,
     pub timers: Timer,
     pub progress_counter: Option<u16>,
+    pub states: Vec<TuiWidgetState>,
+    pub tab_names: Vec<&'static str>,
+    pub selected_tab: usize,
 }
 
 impl Emulator {
@@ -57,6 +58,14 @@ impl Emulator {
             timers: Timer::new(1),
             should_quit: false,
             progress_counter: None,
+            states: vec![
+                TuiWidgetState::new().set_default_display_level(LevelFilter::Info),
+                TuiWidgetState::new().set_default_display_level(LevelFilter::Info),
+                TuiWidgetState::new().set_default_display_level(LevelFilter::Info),
+                TuiWidgetState::new().set_default_display_level(LevelFilter::Info),
+            ],
+            tab_names: vec!["State 1", "State 2", "State 3", "State 4"],
+            selected_tab: 0,
         }
     }
 
@@ -64,7 +73,7 @@ impl Emulator {
     /// Renders the Logs on the right
     fn draw(&self, frame: &mut Frame) {
         let chunks = Layout::default()
-            .direction(Direction::Horizontal)
+            .direction(Direction::Vertical)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(frame.area());
 
@@ -75,6 +84,7 @@ impl Emulator {
 
         //let log_content = log_block.inner(chunks[1]);
 
+        let current_state = self.selected_state();
         TuiLoggerSmartWidget::default()
             .style_error(Style::default().fg(Color::Red))
             .style_debug(Style::default().fg(Color::Green))
@@ -87,6 +97,7 @@ impl Emulator {
             .output_target(true)
             .output_file(true)
             .output_line(true)
+            .state(current_state)
             .render(chunks[1], frame.buffer_mut());
     }
 
@@ -95,59 +106,107 @@ impl Emulator {
         Ok(())
     }
 
-    pub fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<u8> {
-        match key_event.code {
-            KeyCode::Char('0') => {
-                //TODO: figure out what i was doing here self.exit();
-                return Ok(255);
-            }
-            KeyCode::Left => {
-                self.decrement_counter()?;
-                return Ok(254);
-            }
-            KeyCode::Right => {
-                self.increment_counter()?;
-                return Ok(253);
-            }
+    pub fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<(), String> {
+        let state = self.selected_state();
 
+        match key_event.code {
             // Chip8 valid 16 chars
-            KeyCode::Char('1') => Ok::<u8, Report>(0),
-            KeyCode::Char('2') => Ok(1),
-            KeyCode::Char('3') => Ok(2),
-            KeyCode::Char('4') => Ok(3),
+            KeyCode::Char('0') => Ok(()),
+            KeyCode::Char('1') => Ok(()),
+            KeyCode::Char('2') => Ok(()),
+            KeyCode::Char('3') => Ok(()),
+            KeyCode::Char('4') => Ok(()),
             KeyCode::Char('q') => {
                 self.should_quit = true;
-                Ok(4)
+                Ok(())
             }
-            KeyCode::Char('w') => Ok(5),
-            KeyCode::Char('e') => Ok(6),
-            KeyCode::Char('r') => Ok(7),
-            KeyCode::Char('a') => Ok(8),
-            KeyCode::Char('s') => Ok(9),
-            KeyCode::Char('d') => {
-                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.should_quit = true;
-                }
-                Ok(10)
-            }
-            KeyCode::Char('f') => Ok(11),
-            KeyCode::Char('z') => {
-                if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.should_quit = true;
-                }
-                Ok(12)
-            }
-            KeyCode::Char('x') => Ok(13),
+            KeyCode::Char('w') => Ok(()),
+            KeyCode::Char('e') => Ok(()),
+            KeyCode::Char('r') => Ok(()),
+            KeyCode::Char('a') => Ok(()),
+            KeyCode::Char('s') => Ok(()),
+            KeyCode::Char('d') => Ok(()),
+            //KeyCode::Char('f') => Ok(()),
+            KeyCode::Char('z') => Ok(()),
+            KeyCode::Char('x') => Ok(()),
             KeyCode::Char('c') => {
                 if key_event.modifiers.contains(KeyModifiers::CONTROL) {
                     self.should_quit = true;
                 }
-                Ok(14)
+                Ok(())
             }
-            KeyCode::Char('v') => Ok(15),
-            _ => Ok(222),
+            KeyCode::Char('v') => Ok(()),
+
+            // Tui Logger Smart Widget Keys
+            KeyCode::Char('\t') | KeyCode::Tab => {
+                self.next_tab();
+                Ok(())
+            }
+            KeyCode::Char(' ') => {
+                state.transition(TuiWidgetEvent::SpaceKey);
+                Ok(())
+            }
+            KeyCode::Esc => {
+                state.transition(TuiWidgetEvent::EscapeKey);
+                Ok(())
+            }
+            KeyCode::PageUp => {
+                state.transition(TuiWidgetEvent::PrevPageKey);
+                Ok(())
+            }
+            KeyCode::PageDown => {
+                state.transition(TuiWidgetEvent::NextPageKey);
+                Ok(())
+            }
+            KeyCode::Up => {
+                state.transition(TuiWidgetEvent::UpKey);
+                Ok(())
+            }
+            KeyCode::Down => {
+                state.transition(TuiWidgetEvent::DownKey);
+                Ok(())
+            }
+            KeyCode::Left => {
+                state.transition(TuiWidgetEvent::LeftKey);
+                Ok(())
+            }
+            KeyCode::Right => {
+                state.transition(TuiWidgetEvent::RightKey);
+                Ok(())
+            }
+            KeyCode::Char('+') => {
+                state.transition(TuiWidgetEvent::PlusKey);
+                Ok(())
+            }
+            KeyCode::Char('-') => {
+                state.transition(TuiWidgetEvent::MinusKey);
+                Ok(())
+            }
+            KeyCode::Char('h') => {
+                state.transition(TuiWidgetEvent::HideKey);
+                Ok(())
+            }
+            KeyCode::Char('f') => {
+                state.transition(TuiWidgetEvent::FocusKey);
+                Ok(())
+            }
+
+            // Catch the combination of Ctrl and any key.
+            _ if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.should_quit = true;
+                Ok(())
+            }
+
+            _ => Ok(()),
         }
-        //Ok(111)
+    }
+
+    fn selected_state(&self) -> &TuiWidgetState {
+        &self.states[self.selected_tab]
+    }
+
+    fn next_tab(&mut self) {
+        self.selected_tab = (self.selected_tab + 1) % self.tab_names.len();
     }
 
     /// The print_memory function has been moved to the Memory module
@@ -233,6 +292,12 @@ impl Emulator {
         }
 
         Ok(())
+    }
+}
+
+impl Default for Emulator {
+    fn default() -> Self {
+        Self::new()
     }
 } // end Impl Emulator
 
