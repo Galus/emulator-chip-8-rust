@@ -8,7 +8,6 @@ mod timer;
 use crate::emojis::EMOJIS as E;
 use cpu::Cpu;
 use gpu::Gpu;
-use input::Keypad;
 use mem::Memory;
 use timer::Timer; // Avoid Emoji Nightmares
 
@@ -17,13 +16,18 @@ use std::time::{self, Duration};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
-use tui_logger::{LevelFilter, TuiWidgetState};
+use tui_logger::{
+    ExtLogRecord, LevelFilter, LogFormatter, TuiLoggerLevelOutput, TuiLoggerSmartWidget,
+    TuiWidgetState,
+};
 
 use std::sync::mpsc;
 use std::thread;
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
+    style::{Color, Style},
+    text::{Line, Span},
     widgets::{Block, Paragraph, Widget},
     DefaultTerminal, Frame,
 };
@@ -66,10 +70,23 @@ impl Emulator {
 
         self.gpu.render(chunks[0], frame.buffer_mut());
 
-        let log_block = Block::bordered().title("Log Output");
-        let log_content = Paragraph::new("Placeholder for log output");
-        log_content
-            .block(log_block)
+        //let log_block = Block::bordered().title("Log Output");
+        //frame.render_widget(log_block, chunks[1]);
+
+        //let log_content = log_block.inner(chunks[1]);
+
+        TuiLoggerSmartWidget::default()
+            .style_error(Style::default().fg(Color::Red))
+            .style_debug(Style::default().fg(Color::Green))
+            .style_warn(Style::default().fg(Color::Yellow))
+            .style_trace(Style::default().fg(Color::Magenta))
+            .style_info(Style::default().fg(Color::Cyan))
+            .output_separator(':')
+            .output_timestamp(Some("%H:%M:%S".to_string()))
+            .output_level(Some(TuiLoggerLevelOutput::Abbreviated))
+            .output_target(true)
+            .output_file(true)
+            .output_line(true)
             .render(chunks[1], frame.buffer_mut());
     }
 

@@ -7,26 +7,26 @@
 //                  |___/
 #[macro_use]
 extern crate log;
-//use log::{debug, info, logger};
-use log::*;
+use log::{debug, info};
 
+use ratatui::layout::Alignment;
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
 use ratatui::DefaultTerminal;
 
 use std::env::{args, current_dir};
 
-use tui_logger::*;
-//use tui_logger::{
-//    init_logger, set_default_level, set_log_file, TuiLoggerFile, TuiLoggerLevelOutput,
-//};
+use tui_logger::{
+    init_logger, set_default_level, set_log_file, ExtLogRecord, LogFormatter, TuiLoggerFile,
+    TuiLoggerLevelOutput,
+};
 
 use color_eyre::{eyre::eyre, Result};
 
 mod emojis;
 mod emu;
 
-use crossterm::event::{
-    DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind,
-};
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -38,7 +38,7 @@ use std::fs::read;
 use std::io::stdout;
 
 fn setup_logging() -> Result<()> {
-    init_logger(log::LevelFilter::Trace).unwrap();
+    init_logger(log::LevelFilter::Trace)?;
     set_default_level(log::LevelFilter::Trace);
 
     let mut dir = current_dir()?;
@@ -87,6 +87,49 @@ fn set_panic_hook() {
         let _ = restore_terminal();
         hook(panic_info);
     }))
+}
+
+//--------------------------------------------------------------
+// Logging
+// Ugly LogFormatter
+//--------------------------------------------------------------
+
+struct MyLogFormatter {}
+impl LogFormatter for MyLogFormatter {
+    fn min_width(&self) -> u16 {
+        4
+    }
+    fn format(&self, _width: usize, evt: &ExtLogRecord) -> Vec<Line> {
+        let mut lines = vec![];
+        match evt.level {
+            log::Level::Error => {
+                let st = Style::new(); //.red().bold();
+                let sp = Span::styled("======", st);
+                let mayday = Span::from(" MAYDAY MAYDAY ".to_string());
+                let sp2 = Span::styled("======", st);
+                lines.push(Line::from(vec![sp, mayday, sp2]).alignment(Alignment::Center));
+                lines.push(
+                    Line::from(format!("{}: {}", evt.level, evt.msg()))
+                        .alignment(Alignment::Center),
+                );
+            }
+            _ => {
+                lines.push(Line::from(format!("{}: {}", evt.level, evt.msg())));
+            }
+        };
+
+        match evt.level {
+            log::Level::Error => {
+                let st = Style::new(); //.blue().bold();
+                let sp = Span::styled("======", st);
+                let mayday = Span::from(" MAYDAY SEEN ? ".to_string());
+                let sp2 = Span::styled("======", st);
+                lines.push(Line::from(vec![sp, mayday, sp2]).alignment(Alignment::Center));
+            }
+            _ => {}
+        };
+        lines
+    }
 }
 
 fn main() -> Result<()> {
