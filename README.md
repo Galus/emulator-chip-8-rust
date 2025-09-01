@@ -35,6 +35,10 @@ The project is organized into the following modules:
 [joamag's boytacean gameboy emulator](https://github.com/joamag/boytacean) 
 inspired my project layout to funnel all the things into the cpu. :)
 
+Update 8/31/25: I am so pissed I hurdur 'funnel'd all these things into CPU.
+I refactored it all to be top-level at 'emu' and passed down to where its needed.
+I wonder why I even decided to go down that dark path.
+
 ## Features
 
 - Accurate emulation of CHIP-8 instructions
