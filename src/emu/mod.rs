@@ -48,6 +48,7 @@ pub struct Emulator {
     pub memory: Memory,
     pub should_quit: bool,
     pub show_help: bool,
+    pub show_logs: bool,
     pub timers: Timer,
     pub progress_counter: Option<u16>,
     pub states: Vec<TuiWidgetState>,
@@ -64,6 +65,7 @@ impl Emulator {
             timers: Timer::new(1),
             should_quit: false,
             show_help: false,
+            show_logs: true,
             progress_counter: None,
             states: vec![
                 TuiWidgetState::new().set_default_display_level(LevelFilter::Info),
@@ -80,45 +82,85 @@ impl Emulator {
     /// Renders the Logs on the right
     fn draw(&self, frame: &mut Frame) {
         if !self.show_help {
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
-                .split(frame.area());
+            if self.show_logs {
+                let chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                    .split(frame.area());
 
-            self.gpu.render(chunks[0], frame.buffer_mut());
+                self.gpu.render(chunks[0], frame.buffer_mut());
 
-            //let log_block = Block::bordered().title("Log Output");
-            //frame.render_widget(log_block, chunks[1]);
+                //let log_block = Block::bordered().title("Log Output");
+                //frame.render_widget(log_block, chunks[1]);
 
-            //let log_content = log_block.inner(chunks[1]);
+                //let log_content = log_block.inner(chunks[1]);
 
-            let current_state = self.selected_state();
-            TuiLoggerSmartWidget::default()
-                .style_error(Style::default().fg(Color::Red))
-                .style_debug(Style::default().fg(Color::Green))
-                .style_warn(Style::default().fg(Color::Yellow))
-                .style_trace(Style::default().fg(Color::Magenta))
-                .style_info(Style::default().fg(Color::Cyan))
-                .output_separator(':')
-                .output_timestamp(Some("%H:%M:%S".to_string()))
-                .output_level(Some(TuiLoggerLevelOutput::Abbreviated))
-                .output_target(true)
-                .output_file(true)
-                .output_line(true)
-                .state(current_state)
-                .render(chunks[1], frame.buffer_mut());
+                let current_state = self.selected_state();
+                TuiLoggerSmartWidget::default()
+                    .style_error(Style::default().fg(Color::Red))
+                    .style_debug(Style::default().fg(Color::Green))
+                    .style_warn(Style::default().fg(Color::Yellow))
+                    .style_trace(Style::default().fg(Color::Magenta))
+                    .style_info(Style::default().fg(Color::Cyan))
+                    .output_separator(':')
+                    .output_timestamp(Some("%H:%M:%S".to_string()))
+                    .output_level(Some(TuiLoggerLevelOutput::Abbreviated))
+                    .output_target(true)
+                    .output_file(true)
+                    .output_line(true)
+                    .state(current_state)
+                    .render(chunks[1], frame.buffer_mut());
+            } else {
+                let chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Percentage(100)])
+                    .split(frame.area());
+
+                self.gpu.render(chunks[0], frame.buffer_mut());
+            }
         } else {
             let title = vec![" Help".bold(), " ?".red().bold()];
-            let instructions = vec![" Close Help ".into(), "?|q|C-c ".blue().bold()];
-            let help_text = [
-                "Use the arrow keys to navigate the log panel.",
-                "Use '+|Right' and '-|Left' to change log verbosity.",
-                "Press 'h' to hide the target selection panel.",
-                "Press 'f' to focus on the target selection panel.",
-                "Press 'q' or 'Ctrl-C' to quit the application.",
-                "",
-            ]
-            .join("\n");
+            let instructions = vec![" Close Help ".into(), "Press any key.".blue().bold()];
+            let help_text = "\
+  Help
+
+  This is an interactive terminal application.
+  Use the following keybindings to control the emulator and interact with the interface.
+
+  General Controls
+  - ?: Toggle the help screen.
+  - q or Ctrl-C: Quit the application.
+
+  Chip-8 Keypad Mapping
+  The emulator maps your keyboard to a standard Chip-8 keypad.
+  - 1: 1
+  - 2: 2
+  - 3: 3
+  - 4: C
+  - q: 4
+  - w: 5
+  - e: 6
+  - r: D
+  - a: 7
+  - s: 8
+  - d: 9
+  - f: E
+  - z: A
+  - x: 0
+  - c: B
+  - v: F
+
+  Log Panel Controls
+  These controls are active when the log panel is focused.
+  - l: Toggle Log Panel on/off
+  - Arrow Keys (↑, ↓, ←, →): Navigate through log messages.
+  - Page Up / Page Down: Jump to the previous or next page of logs.
+  - + / -: Increase or decrease the log verbosity level.
+  - h: Hide the log target selector.
+  - f: Focus on the log target selector.
+  - Tab: Switch between the different log states.
+  - Escape: Exit the log focus mode.
+  ";
 
             let block = Block::bordered()
                 .title_top(title)
@@ -140,6 +182,11 @@ impl Emulator {
 
     pub fn handle_key_event(&mut self, key_event: KeyEvent) -> Result<(), String> {
         let state = self.selected_state();
+        // If help window is showing, pressing any key removes it.
+        if self.show_help {
+            self.show_help = false;
+            return Ok(());
+        }
 
         match key_event.code {
             KeyCode::Char('?') => {
@@ -153,11 +200,7 @@ impl Emulator {
             KeyCode::Char('3') => Ok(()),
             KeyCode::Char('4') => Ok(()),
             KeyCode::Char('q') => {
-                if self.show_help {
-                    self.show_help = false;
-                } else {
-                    self.should_quit = true;
-                }
+                self.should_quit = true;
                 Ok(())
             }
             KeyCode::Char('w') => Ok(()),
@@ -171,17 +214,17 @@ impl Emulator {
             KeyCode::Char('x') => Ok(()),
             KeyCode::Char('c') => {
                 if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    if self.show_help {
-                        self.show_help = false;
-                    } else {
-                        self.should_quit = true;
-                    }
+                    self.should_quit = true;
                 }
                 Ok(())
             }
             KeyCode::Char('v') => Ok(()),
 
             // Tui Logger Smart Widget Keys
+            KeyCode::Char('l') => {
+                self.show_logs = !self.show_logs;
+                Ok(())
+            }
             KeyCode::Char('\t') | KeyCode::Tab => {
                 self.next_tab();
                 Ok(())
