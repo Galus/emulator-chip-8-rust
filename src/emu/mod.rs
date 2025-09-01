@@ -1,3 +1,7 @@
+use ratatui::layout::Position;
+use ratatui::text::Text;
+use ratatui::widgets::{BorderType, Paragraph};
+use ratatui::{layout::Alignment, style::Stylize};
 mod cpu;
 pub mod gpu;
 mod input;
@@ -26,7 +30,8 @@ use std::thread;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
-    widgets::Widget,
+    text::Line,
+    widgets::{block::Title, Block, Widget},
     DefaultTerminal, Frame,
 };
 
@@ -42,6 +47,7 @@ pub struct Emulator {
     pub gpu: Gpu,
     pub memory: Memory,
     pub should_quit: bool,
+    pub show_help: bool,
     pub timers: Timer,
     pub progress_counter: Option<u16>,
     pub states: Vec<TuiWidgetState>,
@@ -57,6 +63,7 @@ impl Emulator {
             memory: Memory::new(),
             timers: Timer::new(1),
             should_quit: false,
+            show_help: false,
             progress_counter: None,
             states: vec![
                 TuiWidgetState::new().set_default_display_level(LevelFilter::Info),
@@ -72,33 +79,58 @@ impl Emulator {
     /// Renders the Gpu on the left
     /// Renders the Logs on the right
     fn draw(&self, frame: &mut Frame) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(frame.area());
+        if !self.show_help {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+                .split(frame.area());
 
-        self.gpu.render(chunks[0], frame.buffer_mut());
+            self.gpu.render(chunks[0], frame.buffer_mut());
 
-        //let log_block = Block::bordered().title("Log Output");
-        //frame.render_widget(log_block, chunks[1]);
+            //let log_block = Block::bordered().title("Log Output");
+            //frame.render_widget(log_block, chunks[1]);
 
-        //let log_content = log_block.inner(chunks[1]);
+            //let log_content = log_block.inner(chunks[1]);
 
-        let current_state = self.selected_state();
-        TuiLoggerSmartWidget::default()
-            .style_error(Style::default().fg(Color::Red))
-            .style_debug(Style::default().fg(Color::Green))
-            .style_warn(Style::default().fg(Color::Yellow))
-            .style_trace(Style::default().fg(Color::Magenta))
-            .style_info(Style::default().fg(Color::Cyan))
-            .output_separator(':')
-            .output_timestamp(Some("%H:%M:%S".to_string()))
-            .output_level(Some(TuiLoggerLevelOutput::Abbreviated))
-            .output_target(true)
-            .output_file(true)
-            .output_line(true)
-            .state(current_state)
-            .render(chunks[1], frame.buffer_mut());
+            let current_state = self.selected_state();
+            TuiLoggerSmartWidget::default()
+                .style_error(Style::default().fg(Color::Red))
+                .style_debug(Style::default().fg(Color::Green))
+                .style_warn(Style::default().fg(Color::Yellow))
+                .style_trace(Style::default().fg(Color::Magenta))
+                .style_info(Style::default().fg(Color::Cyan))
+                .output_separator(':')
+                .output_timestamp(Some("%H:%M:%S".to_string()))
+                .output_level(Some(TuiLoggerLevelOutput::Abbreviated))
+                .output_target(true)
+                .output_file(true)
+                .output_line(true)
+                .state(current_state)
+                .render(chunks[1], frame.buffer_mut());
+        } else {
+            let title = vec![" Help".bold(), " ?".red().bold()];
+            let instructions = vec![" Close Help ".into(), "?|q|C-c ".blue().bold()];
+            let help_text = [
+                "Use the arrow keys to navigate the log panel.",
+                "Use '+|Right' and '-|Left' to change log verbosity.",
+                "Press 'h' to hide the target selection panel.",
+                "Press 'f' to focus on the target selection panel.",
+                "Press 'q' or 'Ctrl-C' to quit the application.",
+                "",
+            ]
+            .join("\n");
+
+            let block = Block::bordered()
+                .title_top(title)
+                .title_bottom(instructions)
+                .border_type(BorderType::Rounded);
+
+            let paragraph = Paragraph::new(help_text)
+                .alignment(Alignment::Left)
+                .block(block);
+
+            frame.render_widget(paragraph, frame.area());
+        }
     }
 
     pub fn load_rom(&mut self, rom_data: &[u8]) -> Result<(), String> {
@@ -110,6 +142,10 @@ impl Emulator {
         let state = self.selected_state();
 
         match key_event.code {
+            KeyCode::Char('?') => {
+                self.show_help = !self.show_help;
+                Ok(())
+            }
             // Chip8 valid 16 chars
             KeyCode::Char('0') => Ok(()),
             KeyCode::Char('1') => Ok(()),
@@ -117,7 +153,11 @@ impl Emulator {
             KeyCode::Char('3') => Ok(()),
             KeyCode::Char('4') => Ok(()),
             KeyCode::Char('q') => {
-                self.should_quit = true;
+                if self.show_help {
+                    self.show_help = false;
+                } else {
+                    self.should_quit = true;
+                }
                 Ok(())
             }
             KeyCode::Char('w') => Ok(()),
@@ -131,7 +171,11 @@ impl Emulator {
             KeyCode::Char('x') => Ok(()),
             KeyCode::Char('c') => {
                 if key_event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.should_quit = true;
+                    if self.show_help {
+                        self.show_help = false;
+                    } else {
+                        self.should_quit = true;
+                    }
                 }
                 Ok(())
             }
