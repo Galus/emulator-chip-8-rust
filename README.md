@@ -13,6 +13,7 @@ CHIP-8 is an interpreted programming language developed in the 1970s, primarily 
     - Display Registers, Memory Layout
 - Load Chip-8 Roms via CLI arg.
 - Multi-Threaded - Input Thread, Background Threads, Main+Rendering Thread
+- Logs to file `./chip8.log`
 
 ## Usage
 
