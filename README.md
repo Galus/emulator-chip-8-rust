@@ -72,6 +72,24 @@ For more detailed progress see [TEST_PLAN.md](/TEST_PLAN.md)
 
 The project is organized into the following modules:
 
+```
+src
+├── emojis.rs
+├── emu
+│   ├── cpu.rs
+│   ├── gpu.rs
+│   ├── input.rs
+│   ├── iset.rs
+│   ├── mem.rs
+│   ├── mod.rs
+│   └── timer.rs
+└── main.rs
+```
+
+### WARNING Old Project Structure
+I am leaving this in the readme to help future first-time emulator
+developers from going down this deep rabbit hole of coupling/nesting.
+
 - chip8
     - emu
         - cpu
@@ -81,8 +99,12 @@ The project is organized into the following modules:
 [joamag's boytacean gameboy emulator](https://github.com/joamag/boytacean) 
 inspired my project layout to funnel all the things into the cpu. :)
 
-Update 8/2ww31/25: I am so pissed I hurdur 'funnel'd all these things into CPU.
+Update 8/23/25
+
+I am so pissed I hurdur 'funnel'd all these things into CPU.
+
 I refactored it all to be top-level at 'emu' and passed down to where its needed.
+
 I wonder why I even decided to go down that dark path.
 
 ## Architecture Design Philosophy
