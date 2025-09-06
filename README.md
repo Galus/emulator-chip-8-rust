@@ -29,49 +29,8 @@ CHIP-8 is an interpreted programming language developed in the 1970s, primarily 
 - 9/01/25 Got threading and TUI logger implemented. Organized overall arch and iset.
 - 9/06/25 Added [TEST_PLAN.md](/TEST_PLAN.md)
 
-## Project Structure
-
-```
-Module-Level Interaction
-Each component module (cpu.rs, gpu.rs, mem.rs, etc.) should be self-contained and expose public methods for the Emu struct to call.
-
-    cpu.rs: Contains the CPU state (program counter, registers, stack) and logic for fetching and executing opcodes. It will take a mutable reference to Mem and Gpu to interact with them.
-
-    mem.rs: Manages the memory array. It will have methods like read_byte(addr) and write_byte(addr, value).
-
-    gpu.rs: Handles the pixel grid and drawing logic. It should have a method like draw_sprite(x, y, data) that takes a mutable reference to self to update its state. It will then be responsible for converting this state into a ratatui widget.
-
-    input.rs: Manages the state of the keyboard keys.
-
-    timer.rs: Manages the delay and sound timers.
-
-By passing references between these modules when needed (e.g., cpu.execute_opcode(&mut self.memory, &mut self.gpu)), you maintain a clean, central control flow within the Emu struct. This approach is highly maintainable because you can easily trace the flow of data and logic, and each component can be tested independently.
-```
-
-The project is organized into the following modules:
-
-- chip8
-    - emu
-        - cpu
-            - gpu
-            - memory
-
-[joamag's boytacean gameboy emulator](https://github.com/joamag/boytacean) 
-inspired my project layout to funnel all the things into the cpu. :)
-
-Update 8/2ww31/25: I am so pissed I hurdur 'funnel'd all these things into CPU.
-I refactored it all to be top-level at 'emu' and passed down to where its needed.
-I wonder why I even decided to go down that dark path.
-
-## Features
-
-- Accurate emulation of CHIP-8 instructions
-- Display output
-- Keyboard input
-- Sound support
-- Configurable clock speed
-
-### Instructions Progress
+## Instructions Progress
+For more detailed progress see [TEST_PLAN.md](/TEST_PLAN.md)
 
 - [X] 00E0 - CLS
 - [X] 00EE - RET
@@ -108,6 +67,48 @@ I wonder why I even decided to go down that dark path.
 - [ ] Fx33 - LD B, Vx
 - [ ] Fx55 - LD [I], Vx
 - [ ] Fx65 - LD Vx, [I]
+
+## Project Structure
+
+The project is organized into the following modules:
+
+- chip8
+    - emu
+        - cpu
+            - gpu
+            - memory
+
+[joamag's boytacean gameboy emulator](https://github.com/joamag/boytacean) 
+inspired my project layout to funnel all the things into the cpu. :)
+
+Update 8/2ww31/25: I am so pissed I hurdur 'funnel'd all these things into CPU.
+I refactored it all to be top-level at 'emu' and passed down to where its needed.
+I wonder why I even decided to go down that dark path.
+
+## Architecture Design Philosophy
+```
+Module-Level Interaction
+Each component module (cpu.rs, gpu.rs, mem.rs, etc.) should be self-contained and expose public methods for the Emu struct to call.
+
+    cpu.rs: Contains the CPU state (program counter, registers, stack) and logic for fetching and executing opcodes. It will take a mutable reference to Mem and Gpu to interact with them.
+
+    mem.rs: Manages the memory array. It will have methods like read_byte(addr) and write_byte(addr, value).
+
+    gpu.rs: Handles the pixel grid and drawing logic. It should have a method like draw_sprite(x, y, data) that takes a mutable reference to self to update its state. It will then be responsible for converting this state into a ratatui widget.
+
+    input.rs: Manages the state of the keyboard keys.
+
+    timer.rs: Manages the delay and sound timers.
+
+```
+
+## Technical Requirements
+
+- Accurate emulation of CHIP-8 instructions
+- Display output
+- Keyboard input
+- Sound support
+- Configurable clock speed
 
 ## Building and Running
 
