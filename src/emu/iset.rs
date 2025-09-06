@@ -2,7 +2,34 @@ use super::{cpu::Cpu, gpu::Gpu, mem::Memory, timer::Timer};
 
 #[derive(Debug, Copy, Clone)]
 pub struct OpCode(pub u16);
-trait Chip8ISet {
+
+pub trait Nibbles {
+    fn into_tuple(&self) -> (u8, u8, u8, u8);
+    // fn into_vec(&self) -> Vec<u8>;
+}
+
+impl Nibbles for OpCode {
+    fn into_tuple(&self) -> (u8, u8, u8, u8) {
+        (
+            ((0xF000 & self.0) >> 12) as u8,
+            ((0x0F00 & self.0) >> 8) as u8,
+            ((0x00F0 & self.0) >> 4) as u8,
+            (0x000F & self.0) as u8,
+        )
+    }
+
+    //fn into_vec(&self) -> Vec<u8> {
+    //    let nibbles: Vec<u8> = vec![
+    //        ((0xF000 & self.0) >> 12) as u8,
+    //        ((0x0F00 & self.0) >> 8) as u8,
+    //        ((0x00F0 & self.0) >> 4) as u8,
+    //        (0x000F & self.0) as u8,
+    //    ];
+    //    nibbles
+    //}
+}
+
+pub trait Chip8ISet {
     /// Returns current opcodes 2nd nibble
     fn get_x(cpu: &Cpu) -> u8;
 
@@ -629,30 +656,4 @@ impl Chip8ISet for OpCode {
         }
         cpu.index_register += (num_registers + 1) as u16;
     }
-}
-
-pub trait Nibbles {
-    fn into_tuple(&self) -> (u8, u8, u8, u8);
-    // fn into_vec(&self) -> Vec<u8>;
-}
-
-impl Nibbles for OpCode {
-    fn into_tuple(&self) -> (u8, u8, u8, u8) {
-        (
-            ((0xF000 & self.0) >> 12) as u8,
-            ((0x0F00 & self.0) >> 8) as u8,
-            ((0x00F0 & self.0) >> 4) as u8,
-            (0x000F & self.0) as u8,
-        )
-    }
-
-    //fn into_vec(&self) -> Vec<u8> {
-    //    let nibbles: Vec<u8> = vec![
-    //        ((0xF000 & self.0) >> 12) as u8,
-    //        ((0x0F00 & self.0) >> 8) as u8,
-    //        ((0x00F0 & self.0) >> 4) as u8,
-    //        (0x000F & self.0) as u8,
-    //    ];
-    //    nibbles
-    //}
 }

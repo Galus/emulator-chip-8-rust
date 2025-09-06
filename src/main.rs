@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
 // Copyright (c) 2024-2025 galus. All Rights Reserved.
 //    __                        _                                __
 //   / /_/\__        __ _  __ _| |_   _ ___             __/\__  / /
@@ -5,6 +7,7 @@
 // / / /_  _\      | (_| | (_| | | |_| \__ \            /_  _\/ /
 ///_/    \/         \__, |\__,_|_|\__,_|___/              \/ /_/
 //                  |___/
+
 #[macro_use]
 extern crate log;
 use log::{debug, info};
@@ -68,6 +71,7 @@ fn init_terminal() -> Result<DefaultTerminal> {
     execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
     set_panic_hook();
 
+    #[allow(unused_mut)]
     let mut terminal = ratatui::init(); // ratatui.rs has 'let mut terminal'
     Ok(terminal)
 }

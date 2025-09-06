@@ -3,9 +3,24 @@
 This is a CHIP-8 emulator implemented in Rust.
 CHIP-8 is an interpreted programming language developed in the 1970s, primarily used on 8-bit microcomputers and for creating simple video games.
 
-- 4/20/25 Add tui-logger and ratatui tracing. Enable logging to ease development.
+
+## Features
+
+- Terminal User Interface. I love TUIs! What other Emulator to implement in a TUI other than Chip-8 because of its 32x64 display?
+- [Ratatui TUI](https://ratatui.rs/) with [tui-logger](https://github.com/gin66/tui-logger/) smart widget
+- `GPU` Widget for rendering the `display`
+- `Emu[later]` Widget for rendering the `App state`
+    - Display Registers, Memory Layout
+- Load Chip-8 Roms via CLI arg.
+- Multi-Threaded - Input Thread, Background Threads, Main+Rendering Thread
+
+
+## Changelog
+
+- 4/ww20/25 Add tui-logger and ratatui tracing. Enable logging to ease development.
 - 8/16/25 Moved to its own project.
 - 9/01/25 Got threading and TUI logger implemented. Organized overall arch and iset.
+- 9/06/25 Added [TEST_PLAN.md](/TEST_PLAN.md)
 
 ## Project Structure
 
@@ -37,7 +52,7 @@ The project is organized into the following modules:
 [joamag's boytacean gameboy emulator](https://github.com/joamag/boytacean) 
 inspired my project layout to funnel all the things into the cpu. :)
 
-Update 8/31/25: I am so pissed I hurdur 'funnel'd all these things into CPU.
+Update 8/2ww31/25: I am so pissed I hurdur 'funnel'd all these things into CPU.
 I refactored it all to be top-level at 'emu' and passed down to where its needed.
 I wonder why I even decided to go down that dark path.
 

@@ -17,3 +17,6 @@ tui-logger = "0.17.3"
 feature_crossterm_or_termion_must_be_selected = []
 crossterm = ["ratatui/crossterm", "feature_crossterm_or_termion_must_be_selected"]
 termion = []
+
+[rustc]
+rustflags = ["-A", "unused_variables"]

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
 // I am thinking of making this a layer between the App and the Ratatui
 // Contains the graphics processing.
 use crossterm::event::Event;
@@ -99,28 +101,20 @@ impl Gpu {
 /// I like to say Ratatui
 impl Widget for &Gpu {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Title::from(Line::from(vec![
-            " GPU".bold(),
-            "<3".red().bold(),
-            " Galus ".bold(),
-        ]));
+        let title = vec![" GPU".bold(), "<3".red().bold(), " Galus ".bold()];
 
-        let instructions = Title::from(Line::from(vec![
+        let instructions = vec![
             " Left ".into(),
             "<H> ".blue().bold(),
             " Right ".into(),
             "<L> ".blue().bold(),
             " Quit ".into(),
             "<Q> ".blue().bold(),
-        ]));
+        ];
 
         let block = Block::bordered()
-            .title(title.alignment(Alignment::Left))
-            .title(
-                instructions
-                    .alignment(Alignment::Center)
-                    .position(Position::Bottom),
-            )
+            .title_top(title)
+            .title_bottom(instructions)
             .border_set(border::THICK);
 
         let counter_text = Text::from(vec![Line::from(vec![
