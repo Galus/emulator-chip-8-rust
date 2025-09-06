@@ -14,10 +14,16 @@ CHIP-8 is an interpreted programming language developed in the 1970s, primarily 
 - Load Chip-8 Roms via CLI arg.
 - Multi-Threaded - Input Thread, Background Threads, Main+Rendering Thread
 
+## Usage
+
+- Clone Project & CD inside it
+- Run with path to chip8 rom file as arg: 
+    - `cargo run ./roms/test.ch8`
+    - `chip8.exe ./roms/test.ch8`
 
 ## Changelog
 
-- 4/ww20/25 Add tui-logger and ratatui tracing. Enable logging to ease development.
+- 4/20/25 Add tui-logger and ratatui tracing. Enable logging to ease development.
 - 8/16/25 Moved to its own project.
 - 9/01/25 Got threading and TUI logger implemented. Organized overall arch and iset.
 - 9/06/25 Added [TEST_PLAN.md](/TEST_PLAN.md)
