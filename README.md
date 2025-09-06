@@ -15,12 +15,67 @@ CHIP-8 is an interpreted programming language developed in the 1970s, primarily 
 - Multi-Threaded - Input Thread, Background Threads, Main+Rendering Thread
 - Logs to file `./chip8.log`
 
+## Building and Running
+
+To build and run the emulator, make sure you have Rust installed on your system. Then, follow these steps:
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/galus/rust-edu.git
+   cd rust-edu/chip8
+   ```
+
+2. Build the project:
+   ```
+   cargo build --release
+   ```
+
+3. Run the emulator:
+   ```
+   cargo run --release -- roms/test.ch8
+   ```
+
+Replace `roms/test.ch8` with the path to a CHIP-8 ROM file you want to run.
+
 ## Usage
 
-- Clone Project & CD inside it
-- Run with path to chip8 rom file as arg: 
-    - `cargo run ./roms/test.ch8`
-    - `chip8.exe ./roms/test.ch8`
+Once the application is running press `?` to open the help:
+
+```
+  General Controls
+  - ?: Toggle the help screen.
+  - q or Ctrl-C: Quit the application.
+
+  Chip-8 Keypad Mapping
+  The emulator maps your keyboard to a standard Chip-8 keypad.
+  - 1: 1
+  - 2: 2
+  - 3: 3
+  - 4: C
+  - q: 4
+  - w: 5
+  - e: 6
+  - r: D
+  - a: 7
+  - s: 8
+  - d: 9
+  - f: E
+  - z: A
+  - x: 0
+  - c: B
+  - v: F
+
+  Log Panel Controls
+  These controls are active when the log panel is focused.
+  - l: Toggle Log Panel on/off
+  - Arrow Keys (↑, ↓, ←, →): Navigate through log messages.
+  - Page Up / Page Down: Jump to the previous or next page of logs.
+  - + / -: Increase or decrease the log verbosity level.
+  - h: Hide the log target selector.
+  - f: Focus on the log target selector.
+  - Tab: Switch between the different log states.
+  - Escape: Exit the log focus mode.
+```
 
 ## Changelog
 
@@ -129,28 +184,6 @@ Each component module (cpu.rs, gpu.rs, mem.rs, etc.) should be self-contained an
 - Keyboard input
 - Sound support
 - Configurable clock speed
-
-## Building and Running
-
-To build and run the emulator, make sure you have Rust installed on your system. Then, follow these steps:
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/galus/rust-edu.git
-   cd rust-edu/chip8
-   ```
-
-2. Build the project:
-   ```
-   cargo build --release
-   ```
-
-3. Run the emulator:
-   ```
-   cargo run --release -- path/to/rom.ch8
-   ```
-
-Replace `path/to/rom.ch8` with the path to a CHIP-8 ROM file you want to run.
 
 ## Contributing
 
