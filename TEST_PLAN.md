@@ -3,14 +3,14 @@
 This document outlines a series of tests to be implemented for each CHIP-8 opcode. The tests should cover successful execution, edge cases, and proper state manipulation of the CPU and memory.
 
 ## 00E0 - CLS
-- [ ] Test: CPU state, video memory.
-- [ ] Steps: Initialize a CPU state and a non-empty video buffer. Execute the `CLS` instruction.
-- [ ] Expected Result: The entire video buffer is cleared to zeros, and the program counter (PC) is incremented by 2.
+- [X] Test: CPU state, video memory.
+- [X] Steps: Initialize a CPU state and a non-empty video buffer. Execute the `CLS` instruction.
+- [X] Expected Result: The entire video buffer is cleared to zeros, and the program counter (PC) is incremented by 2.
 
 ## 00EE - RET
-- [ ] Test: Stack and PC.
-- [ ] Steps: Initialize a CPU with a value pushed onto the stack. Execute the `RET` instruction.
-- [ ] Expected Result: The PC is set to the address popped from the stack, and the stack pointer is decremented.
+- [X] Test: Stack and PC.
+- [X] Steps: Initialize a CPU with a value pushed onto the stack. Execute the `RET` instruction.
+- [X] Expected Result: The PC is set to the address popped from the stack, and the stack pointer is decremented.
 
 ## 0nnn - SYS addr
 - [ ] Test: SYS is ignored.

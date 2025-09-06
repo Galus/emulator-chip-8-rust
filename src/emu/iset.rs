@@ -40,7 +40,7 @@ pub trait Chip8ISet {
     fn _00e0(gpu: &mut Gpu);
 
     /// Return from a subroutine
-    fn _00ee(_emu: &Cpu);
+    fn _00ee(_emu: &mut Cpu);
 
     /// Execute machine language subroutine at address NNN
     fn _0nnn(cpu: &mut Cpu);
@@ -224,8 +224,16 @@ impl Chip8ISet for OpCode {
     }
 
     /// Return from a subroutine
-    fn _00ee(_emu: &Cpu) {
-        return;
+    /// decrements the stack pointer and sets the program counter
+    /// to the current address on the top of the stack
+    fn _00ee(cpu: &mut Cpu) {
+        if cpu.stack_pointer == 0 {
+            panic!("Stack underflow!")
+        } else {
+            cpu.stack_pointer -= 1;
+
+            cpu.program_counter = cpu.stack[cpu.stack_pointer];
+        }
     }
 
     /// Execute machine language subroutine at address NNN
@@ -251,6 +259,14 @@ impl Chip8ISet for OpCode {
 
     /// Execute subroutine starting at address NNN
     fn _2nnn(cpu: &mut Cpu) {
+        if cpu.stack_pointer >= cpu.stack.len() {
+            panic!("Stack overflow!");
+        }
+
+        // push current address onto the stack
+        cpu.stack[cpu.stack_pointer] = cpu.program_counter;
+        cpu.stack_pointer += 1;
+
         let (_, n1, n2, n3) = cpu.current_opcode.into_tuple(); //opcodes are u16
         let address = (n1 as u16) << 8 | (n2 as u16) << 4 | n3 as u16;
         cpu.program_counter = address;

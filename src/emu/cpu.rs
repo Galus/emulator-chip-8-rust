@@ -15,7 +15,7 @@ pub struct Cpu {
     pub current_opcode: OpCode,
     pub registers: [u8; 16],  // general purpose reggies V0-VF
     pub program_counter: u16, // pts to the next instruction
-    //pub stack: [u16; 16], // TODO: Nuke
+    pub stack: [u16; 16],
     pub stack_pointer: usize,
     // IR: Address of the current instruction
     // even tho u16, can only go to 12-bit mem addys b/c chip8 MAX RAM is 4096
@@ -30,7 +30,7 @@ impl Cpu {
             registers: [0; 16],
             index_register: 0,
             program_counter: 0x200,
-            // stack: [0; 16],
+            stack: [0; 16],
             stack_pointer: 0,
         }
     }
@@ -137,6 +137,10 @@ mod cputests {
         cpu.registers[12] = 0x11;
         cpu.index_register = 0x200;
 
+        for i in 0..cpu.stack.len() {
+            cpu.stack[i] = (i + 1) as u16;
+        }
+
         cpu
     }
 
@@ -144,6 +148,53 @@ mod cputests {
         let gpu = Gpu::new();
 
         gpu
+    }
+
+    #[test]
+    fn test_00e0() {
+        let mut gpu = test_init_gpu();
+        OpCode::_00e0(&mut gpu);
+        assert!(gpu.screen.iter().all(|&pixel| !pixel));
+    }
+
+    #[test]
+    fn test_00ee() {
+        let mut cpu = test_init_cpu();
+        assert!(
+            cpu.stack_pointer == 0,
+            "before operation sp: {:?}",
+            cpu.stack_pointer
+        );
+        assert!(
+            cpu.program_counter == 0x200,
+            "before operation pc: {:?}",
+            cpu.program_counter
+        );
+        assert!(
+            cpu.stack[cpu.stack_pointer] == 1,
+            "before operation stack[sp]: {:?}",
+            cpu.stack[cpu.stack_pointer],
+        );
+        // artifically set the stack pointer to be at second index
+        cpu.stack_pointer = 1;
+        OpCode::_00ee(&mut cpu);
+        assert!(cpu.stack_pointer == 0, "sp: {:?}", cpu.stack_pointer);
+        // Remember init cpu method will create our stack such that:
+        // stack: [1, 2, 3, ..., 16]
+        assert!(cpu.program_counter == 1, "pc: {:?}", cpu.program_counter);
+        assert!(
+            cpu.stack[cpu.stack_pointer] == 1,
+            "stack[sp]: {:?}",
+            cpu.stack[cpu.stack_pointer],
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Stack underflow!")]
+    fn test_00ee_underflow() {
+        let mut cpu = test_init_cpu();
+        cpu.stack_pointer = 0;
+        OpCode::_00ee(&mut cpu);
     }
 
     #[test]
