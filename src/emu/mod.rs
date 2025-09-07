@@ -185,7 +185,12 @@ impl Emulator {
     }
 
     pub fn load_rom(&mut self, rom_data: &[u8]) -> Result<(), String> {
+        // TODO: Looks like the rom is loading fine, tracking repeating OpCode 00e0 ticks.
+        // I think its because our program_counter is just not incrementing? or state
+        // is being reset back to 0x200 on each loop iteration
+        info!(target: "emu", "load_rom before mem: {:x?}", self.memory);
         self.memory.load_rom(rom_data);
+        info!(target: "emu", "load_rom after mem: {:x?}", self.memory);
         Ok(())
     }
 

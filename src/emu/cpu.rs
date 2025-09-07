@@ -100,7 +100,10 @@ impl Cpu {
 
     // main emulation loop tick - fetches & processes a single opcode
     pub fn tick(&mut self, memory: &mut Memory, gpu: &mut Gpu, timers: &mut Timer) -> Result<()> {
+        info!(target: "cpu", "cpu.tick called");
+        info!(target: "cpu", "cpu: {:x?}", self);
         let _ = self.fetch_opcode(memory);
+        info!(target: "cpu", "cpu.current_opcode: {:x?}", self.current_opcode);
         if let Err(err) = self.process(memory, gpu, timers) {
             eprintln!("failed to process.: {}", err);
         }
