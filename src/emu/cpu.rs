@@ -13,13 +13,15 @@ use color_eyre::Result;
 #[allow(dead_code)] // REMOVE THIS WHEN DONE
 pub struct Cpu {
     pub current_opcode: OpCode,
-    pub registers: [u8; 16],  // general purpose reggies V0-VF
-    pub program_counter: u16, // pts to the next instruction
+    /// general purpose reggies V0-VF
+    pub registers: [u8; 16],
+    /// pts to the next instruction
+    pub program_counter: u16,
     pub stack: [u16; 16],
     pub stack_pointer: usize,
-    // IR: Address of the current instruction
-    // even tho u16, can only go to 12-bit mem addys b/c chip8 MAX RAM is 4096
-    // ex. 1111 1111 1111 -> 0xFFF -> 4095 -> memsize
+    /// IR: Address of the current instruction
+    /// even tho u16, can only go to 12-bit mem addys b/c chip8 MAX RAM is 4096
+    /// ex. 1111 1111 1111 -> 0xFFF -> 4095 -> memsize
     pub index_register: u16,
 }
 
@@ -181,7 +183,7 @@ mod cputests {
         assert!(cpu.stack_pointer == 0, "sp: {:?}", cpu.stack_pointer);
         // Remember init cpu method will create our stack such that:
         // stack: [1, 2, 3, ..., 16]
-        assert!(cpu.program_counter == 1, "pc: {:?}", cpu.program_counter);
+        assert!(cpu.program_counter == 1, "pc: {:x?}", cpu.program_counter);
         assert!(
             cpu.stack[cpu.stack_pointer] == 1,
             "stack[sp]: {:?}",
@@ -195,6 +197,193 @@ mod cputests {
         let mut cpu = test_init_cpu();
         cpu.stack_pointer = 0;
         OpCode::_00ee(&mut cpu);
+    }
+
+    #[test]
+    fn test_1nnn() {
+        let mut cpu = test_init_cpu();
+        cpu.current_opcode = OpCode(0x1555);
+        OpCode::_1nnn(&mut cpu);
+        assert!(
+            cpu.program_counter == 0x555,
+            "pc: {:x?}",
+            cpu.program_counter
+        );
+    }
+
+    #[test]
+    fn test_6xnn() {
+        let mut cpu = test_init_cpu();
+        let mut register = 1;
+        cpu.current_opcode = OpCode(0x6155);
+        println!("before registers: {:x?}", cpu.registers);
+        OpCode::_6xnn(&mut cpu);
+        println!("after  registers: {:x?}", cpu.registers);
+        assert!(
+            cpu.registers[register] == 0x55,
+            "cpu.registers[{:?}]: {:x?}",
+            register,
+            cpu.registers[register],
+        );
+        register = 7;
+        cpu.current_opcode = OpCode(0x6755);
+        OpCode::_6xnn(&mut cpu);
+        assert!(
+            cpu.registers[register] == 0x55,
+            "cpu.registers[{:?}]: {:x?}",
+            register,
+            cpu.registers[register],
+        );
+    }
+
+    #[test]
+    fn test_7xnn() {
+        let mut cpu = test_init_cpu();
+        let register = 1;
+        let value_added = 0x55;
+        cpu.current_opcode = OpCode(0x7155);
+        let before_vx = cpu.registers[register];
+        println!("before registers: {:x?}", cpu.registers);
+        OpCode::_7xnn(&mut cpu);
+        println!("after  registers: {:x?}", cpu.registers);
+        let after_vx = cpu.registers[register];
+        assert!(after_vx == before_vx + value_added, "did not add correctly");
+        // at this point v[1] == 0x5A = 0x05 + 0x55
+        // run again
+        OpCode::_7xnn(&mut cpu);
+        assert!(
+            cpu.registers[register] == 0xAF,
+            "cpu.registers[{:?}]: {:x?}",
+            register,
+            cpu.registers[register],
+        );
+    }
+
+    #[test]
+    fn test_annn() {
+        let mut cpu = test_init_cpu();
+        cpu.current_opcode = OpCode(0xa234);
+        OpCode::annn(&mut cpu);
+        assert!(
+            cpu.index_register == 0x234,
+            "cpu.index_register: {:?}",
+            cpu.index_register,
+        );
+    }
+
+    #[test]
+    fn test_dxyn() {
+        let mut cpu = test_init_cpu();
+        let mut mem = test_init_mem();
+        let mut gpu = test_init_gpu();
+        let old_vf = cpu.registers[0xF];
+        // assert old_vf is not set
+        assert_eq!(old_vf, 0);
+        assert_eq!(old_vf, cpu.registers[0xF]);
+
+        // assert blank screen
+        const W: usize = 64;
+        const H: usize = 32;
+        assert_eq!(gpu.screen, [false; W * H]);
+
+        // Setup some existing screen data
+        // lets draw '1111 0001' in the middle of second row
+        //    Calc the offset
+        let offset = W + (W / 2);
+        gpu.screen[offset..(offset + 4)].fill(true);
+        gpu.screen[offset + 7] = true;
+        println!("Second row filled with '1111 0001' somewhere...");
+        println!("{:x?}", gpu.screen.map(|bool| bool as u32));
+        assert_eq!(
+            gpu.screen[offset..(offset + 8)],
+            [true, true, true, true, false, false, false, true]
+        );
+
+        // Setup some new pixels to draw!
+        //   lets test 2 bytes worth of pixels
+        let pixel_byte1 = [true, false, true, false, true, false, true, false];
+        let pixel_byte1_u8 = pixel_byte1
+            .iter()
+            .enumerate()
+            .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << (7 - i)));
+        // We will use pixel_byte2 one to make sure dxyn's register vF doesnt get set
+        let pixel_byte2 = [false, false, false, false, false, false, false, false];
+        let pixel_byte2_u8 = pixel_byte2
+            .iter()
+            .enumerate()
+            .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << (7 - i)));
+
+        // Put these bytes into the instruction memory somewhere, lets say 1337 :)
+        // 1337 = 0b10100111001, this requires 11 bits, index_register holds up to 12
+        cpu.index_register = 1337;
+        mem.ram[cpu.index_register as usize] = pixel_byte1_u8;
+        mem.ram[(cpu.index_register as usize) + 1] = pixel_byte2_u8;
+        // This actuall happens to show up as '0xaa' t,f,t,f,t,f,t,f = 1010 1010 = 0xa 0xa
+        // println!("ram:");
+        // println!("{:x?}", mem.ram.map(|u| u as u8));
+
+        // Lets draw into an unset, blank, area and make sure vF is 0
+        // ...draw at the bottom-right of the screen (64x32) -> 48,30
+        // ...put these in two random registers, register 8 and 10
+        cpu.current_opcode = OpCode(0xD432);
+        const VX: u8 = 48; // max is 64
+        const VY: u8 = 30; // max is 32
+        cpu.registers[4] = VX;
+        cpu.registers[3] = VY;
+        println!("screen (before writing to bottom-right of screen):");
+        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
+        OpCode::dxyn(&mut cpu, &mem, &mut gpu);
+        println!("screen (after writing to bottom-right of screen):");
+        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
+        assert_eq!(cpu.registers[0xF], 0); // see if the unset flag in vF remained at 0
+
+        // calculate offset in screen for this bottom-right test
+        let offset = W.wrapping_mul(VY as usize) + VX as usize;
+        assert_eq!(gpu.screen[offset..offset + 8], pixel_byte1);
+        assert_eq!(gpu.screen[offset + 8..offset + 16], pixel_byte2);
+
+        // Lets draw into an already populated set portion of the screen
+        // ... At position 96 we have our first set pixel.
+        // ... This is because earlier we populated '1111 0001' in the 'middle of second row'
+        // ... 'middle of 2nd row => 64 + (64/2) => 64 + 32 = 96'
+        let offset = W + (W / 2);
+
+        // convert to a vX, vY
+        let v_x = W / 2;
+        let v_y = 1;
+
+        // .. set these to register 8 and 10
+        cpu.registers[8] = v_x as u8;
+        cpu.registers[0xA] = v_y as u8;
+        cpu.current_opcode = OpCode(0xD8A2);
+
+        OpCode::dxyn(&mut cpu, &mem, &mut gpu);
+        println!("screen (after overwriting the second-rows set pixels):");
+        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
+
+        // Remember, pixels are xor'd, you cant assume the screen will have the exact pixel bytes
+        // ...                 if existing pixels = 1111 0001
+        // ...                   and pixel_byte1 = '1010 1010'
+        // ... the xor'd output on the screen is = '0101 1011'
+        let expected_screen_after_xor_pixel_byte1 =
+            [false, true, false, true, true, false, true, true];
+        assert_eq!(
+            gpu.screen[offset..offset + 8],
+            expected_screen_after_xor_pixel_byte1
+        );
+
+        // ... similarly screen: 0000 0000
+        // ...           pix b2: 0000 0000
+        // ...              xor: 0000 0000
+        let expected_screen_after_xor_pixel_byte2 =
+            [false, false, false, false, false, false, false, false];
+        assert_eq!(
+            gpu.screen[offset + 8..offset + 16],
+            expected_screen_after_xor_pixel_byte2
+        );
+
+        // ... Last but not least, make sure that the vF unset flag got set to 1
+        assert_eq!(cpu.registers[0xF], 1);
     }
 
     #[test]
@@ -301,121 +490,6 @@ mod cputests {
     //}
 
     //#[test]
-    //fn test_dxyn() {
-    //    let mut cpu = test_init_cpu();
-    //    let mut mem = test_init_mem();
-    //    let mut gpu = test_init_gpu();
-    //    let old_vf = cpu.registers[0xF];
-    //    // assert old_vf is not set
-    //    assert_eq!(old_vf, 0);
-    //    assert_eq!(old_vf, cpu.registers[0xF]);
-    //
-    //    // assert blank screen
-    //    const W: usize = 64;
-    //    const H: usize = 32;
-    //    assert_eq!(gpu.screen, [false; W * H]);
-    //
-    //    // Setup some existing screen data
-    //    // lets draw '1111 0001' in the middle of second row
-    //    //    Calc the offset
-    //    let offset = W + (W / 2);
-    //    gpu.screen[offset..(offset + 4)].fill(true);
-    //    gpu.screen[offset + 7] = true;
-    //    println!("Second row filled with '1111 0001' somewhere...");
-    //    println!("{:x?}", gpu.screen.map(|bool| bool as u32));
-    //    assert_eq!(
-    //        gpu.screen[offset..(offset + 8)],
-    //        [true, true, true, true, false, false, false, true]
-    //    );
-    //
-    //    // Setup some new pixels to draw!
-    //    //   lets test 2 bytes worth of pixels
-    //    let pixel_byte1 = [true, false, true, false, true, false, true, false];
-    //    let pixel_byte1_u8 = pixel_byte1
-    //        .iter()
-    //        .enumerate()
-    //        .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << (7 - i)));
-    //    // We will use pixel_byte2 one to make sure dxyn's register vF doesnt get set
-    //    let pixel_byte2 = [false, false, false, false, false, false, false, false];
-    //    let pixel_byte2_u8 = pixel_byte2
-    //        .iter()
-    //        .enumerate()
-    //        .fold(0u8, |acc, (i, &b)| acc | ((b as u8) << (7 - i)));
-    //
-    //    // Put these bytes into the instruction memory somewhere, lets say 1337 :)
-    //    // 1337 = 0b10100111001, this requires 11 bits, index_register holds up to 12
-    //    cpu.index_register = 1337;
-    //    mem.ram[cpu.index_register as usize] = pixel_byte1_u8;
-    //    mem.ram[(cpu.index_register as usize) + 1] = pixel_byte2_u8;
-    //    // This actuall happens to show up as '0xaa' t,f,t,f,t,f,t,f = 1010 1010 = 0xa 0xa
-    //    println!("ram:");
-    //    println!("{:x?}", mem.ram.map(|u| u as u8));
-    //
-    //    // Lets draw into an unset, blank, area and make sure vF is 0
-    //    // ...draw at the bottom-right of the screen (64x32) -> 48,30
-    //    // ...put these in two random registers, register 8 and 10
-    //    cpu.current_opcode = OpCode(0xD432);
-    //    const VX: u8 = 48; // max is 64
-    //    const VY: u8 = 30; // max is 32
-    //    cpu.registers[4] = VX;
-    //    cpu.registers[3] = VY;
-    //    println!("screen (before writing to bottom-right of screen):");
-    //    println!("{:x?}", gpu.screen.map(|bool| bool as u8));
-    //    OpCode::dxyn(&mut cpu, &mem, &gpu);
-    //    println!("screen (after writing to bottom-right of screen):");
-    //    println!("{:x?}", gpu.screen.map(|bool| bool as u8));
-    //    assert_eq!(cpu.registers[0xF], 0); // see if the unset flag in vF remained at 0
-    //
-    //    // calculate offset in screen for this bottom-right test
-    //    let offset = W.wrapping_mul(VY as usize) + VX as usize;
-    //    assert_eq!(gpu.screen[offset..offset + 8], pixel_byte1);
-    //    assert_eq!(gpu.screen[offset + 8..offset + 16], pixel_byte2);
-    //
-    //    // Lets draw into an already populated set portion of the screen
-    //    // ... At position 96 we have our first set pixel.
-    //    // ... This is because earlier we populated '1111 0001' in the 'middle of second row'
-    //    // ... 'middle of 2nd row => 64 + (64/2) => 64 + 32 = 96'
-    //    let offset = W + (W / 2);
-    //
-    //    // convert to a vX, vY
-    //    let v_x = W / 2;
-    //    let v_y = 1;
-    //
-    //    // .. set these to register 8 and 10
-    //    cpu.registers[8] = v_x as u8;
-    //    cpu.registers[0xA] = v_y as u8;
-    //    cpu.current_opcode = OpCode(0xD8A2);
-    //
-    //    OpCode::dxyn(&mut cpu, &mem, &gpu);
-    //    println!("screen (after overwriting the second-rows set pixels):");
-    //    println!("{:x?}", gpu.screen.map(|bool| bool as u8));
-    //
-    //    // Remember, pixels are xor'd, you cant assume the screen will have the exact pixel bytes
-    //    // ...                 if existing pixels = 1111 0001
-    //    // ...                   and pixel_byte1 = '1010 1010'
-    //    // ... the xor'd output on the screen is = '0101 1011'
-    //    let expected_screen_after_xor_pixel_byte1 =
-    //        [false, true, false, true, true, false, true, true];
-    //    assert_eq!(
-    //        gpu.screen[offset..offset + 8],
-    //        expected_screen_after_xor_pixel_byte1
-    //    );
-    //
-    //    // ... similarly screen: 0000 0000
-    //    // ...           pix b2: 0000 0000
-    //    // ...              xor: 0000 0000
-    //    let expected_screen_after_xor_pixel_byte2 =
-    //        [false, false, false, false, false, false, false, false];
-    //    assert_eq!(
-    //        gpu.screen[offset + 8..offset + 16],
-    //        expected_screen_after_xor_pixel_byte2
-    //    );
-    //
-    //    // ... Last but not least, make sure that the vF unset flag got set to 1
-    //    assert_eq!(cpu.registers[0xF], 1);
-    //}
-
-    //#[test]
     //fn test_fx0a() {
     //    let mut cpu = test_init_cpu();
     //    let old = cpu.registers[7].clone();
@@ -433,8 +507,8 @@ mod cputests {
     //}
 
     mod mock {
-        use crate::emu::{gpu::Gpu, mem::Memory, timer::Timer};
-        use std::mem::size_of_val;
+        // use crate::emu::{gpu::Gpu, mem::Memory, timer::Timer};
+        // use std::mem::size_of_val;
         pub struct MockMemory {
             pub ram: [u8; 4096],
         }

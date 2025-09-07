@@ -1,5 +1,5 @@
-use ratatui::layout::Position;
-use ratatui::text::Text;
+// use ratatui::layout::Position;
+// use ratatui::text::Text;
 use ratatui::widgets::{BorderType, Paragraph};
 use ratatui::{layout::Alignment, style::Stylize};
 mod cpu;
@@ -15,7 +15,11 @@ use gpu::Gpu;
 use mem::Memory;
 use timer::Timer; // Avoid Emoji Nightmares
 
-use color_eyre::{eyre::bail, Report, Result};
+use color_eyre::{
+    eyre::bail,
+    // Report,
+    Result,
+};
 use std::time::{self, Duration};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -30,9 +34,14 @@ use std::thread;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
-    text::Line,
-    widgets::{block::Title, Block, Widget},
-    DefaultTerminal, Frame,
+    // text::Line,
+    widgets::{
+        // block::Title,
+        Block,
+        Widget,
+    },
+    DefaultTerminal,
+    Frame,
 };
 
 #[derive(Debug)]

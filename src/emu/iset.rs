@@ -237,6 +237,8 @@ impl Chip8ISet for OpCode {
     }
 
     /// Execute machine language subroutine at address NNN
+    /// Tobias Langhoff says to skip impl of this func
+    /// https://tobiasvl.github.io/blog/write-a-chip-8-emulator/
     fn _0nnn(cpu: &mut Cpu) {
         let (_, n1, n2, n3) = cpu.current_opcode.into_tuple(); //opcodes are u16
         let address = (n1 as u16) << 8 | (n2 as u16) << 4 | n3 as u16;
@@ -245,8 +247,8 @@ impl Chip8ISet for OpCode {
         // where 0000 1111     0000 1011     0000 0111 implies -> 1111 1011 0111
         //              15            11             6         ->    E    B    6
         // otherwise BCD wouldnt allow for 1111, as 9 is the highest bcd.
-
-        // for now we just set it as the next address to execute
+        //
+        // 9/7/25 - b/c memory for chip8 goes to 0xFFF, I assume its not BCD.
         cpu.program_counter = address;
     }
 
