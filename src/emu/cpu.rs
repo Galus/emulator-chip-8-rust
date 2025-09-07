@@ -272,10 +272,13 @@ mod cputests {
     }
 
     #[test]
-    fn test_dxyn() {
+    fn test_dxyn_draw_without_collision() {
         let mut cpu = test_init_cpu();
         let mut mem = test_init_mem();
         let mut gpu = test_init_gpu();
+
+        // EXPLORING gpu and memory ======================================================
+        // The actual DXYN test happens after this section.
         let old_vf = cpu.registers[0xF];
         // assert old_vf is not set
         assert_eq!(old_vf, 0);
@@ -292,7 +295,7 @@ mod cputests {
         let offset = W + (W / 2);
         gpu.screen[offset..(offset + 4)].fill(true);
         gpu.screen[offset + 7] = true;
-        println!("Second row filled with '1111 0001' somewhere...");
+        println!("Second row filled with '1111 0001' in middle...");
         gpu.debug_screen_print_string();
 
         // println!("{:x?}", gpu.screen.map(|bool| bool as u32));
@@ -321,17 +324,44 @@ mod cputests {
         mem.ram[cpu.index_register as usize] = pixel_byte1_u8;
         mem.ram[(cpu.index_register as usize) + 1] = pixel_byte2_u8;
         // This actuall happens to show up as '0xaa' t,f,t,f,t,f,t,f = 1010 1010 = 0xa 0xa
-        // println!("ram:");
+        println!("ram[1330..1340]:");
+        for &byte in &mem.ram[1330..1340] {
+            println!("{:08b}", byte);
+        }
         // println!("{:x?}", mem.ram.map(|u| u as u8));
+        // END OF EXPLORING gpu and memory ===============================================
 
-        // Lets draw into an unset, blank, area and make sure vF is 0
-        // ...draw at the bottom-right of the screen (64x32) -> 48,30
-        // ...put these in two random registers, register 8 and 10
-        cpu.current_opcode = OpCode(0xD432);
-        const VX: u8 = 48; // max is 64
-        const VY: u8 = 30; // max is 32
-        cpu.registers[4] = VX;
-        cpu.registers[3] = VY;
+        println!("Begin actual testing of the DXYN opcode! ======================================");
+        // From the exploration work, lets re-use our mem and register setup
+        println!("Starting actual Dxyn opcode test.");
+        println!("Current cpu: {:x?}", cpu);
+        println!("Current index_register (decimal): {:?}", cpu.index_register);
+        println!("Current vF (hex): {:x?}", cpu.registers[0xF]);
+        // TODO: Move to overwrite test.
+        // this is the already set area in memory from the exploration.
+        println!("mem.ram[1335..1340]: {:x?}", &mem.ram[1335..1340]);
+        println!("ram[1335..1340]:");
+        for &byte in &mem.ram[1335..1340] {
+            println!("{:08b}", byte);
+        }
+
+        // Lets draw into an unset, blank, area  =======================================
+        // ...and make sure vF is 0
+        // ...draw at the bottom-right of the screen at x:48,y:30
+        // ...put these in two random registers: register 4 and 10
+        const VX: u8 = 48; // max is 64, 48 < 64
+        const VY: u8 = 30; // max is 32, 30 < 42
+                           // How many bytes do we want to draw???? dxyN -> N: # bytes
+        cpu.registers[4] = VX; // opcode D[4]yn
+        cpu.registers[0xa] = VY; // opcode Dx[a]n
+        const NUM_BYTES_TO_DRAW: u16 = 2; // opcode Dxy[2]
+        cpu.current_opcode = OpCode(0xD4A2);
+        // This should start drawing 2 bytes starting at the I index_register
+        // lets preview these bytes
+        let start = cpu.index_register as usize;
+        let end = (cpu.index_register + NUM_BYTES_TO_DRAW) as usize;
+        println!("preview bytes to draw: {:x?}", &mem.ram[start..end]);
+
         println!("screen (before writing to bottom-right of screen):");
         gpu.debug_screen_print_string();
         //println!("{:x?}", gpu.screen.map(|bool| bool as u8));
@@ -339,18 +369,28 @@ mod cputests {
         println!("screen (after writing to bottom-right of screen):");
         gpu.debug_screen_print_string();
         // println!("{:x?}", gpu.screen.map(|bool| bool as u8));
-        assert_eq!(cpu.registers[0xF], 0); // see if the unset flag in vF remained at 0
+
+        // see if the unset flag in vF remained at 0
+        assert_eq!(cpu.registers[0xF], 0);
 
         // calculate offset in screen for this bottom-right test
         let offset = W.wrapping_mul(VY as usize) + VX as usize;
+        println!("This is the offset into the screen array where we started drawing:");
+        println!(
+            "offset of lower right drawed area x:{:?},y:{:?} == {:?}",
+            VX, VY, offset
+        );
+        // Make sure that this exact piece of the screen matches the
+        // pixel data we wanted to write into it.
         assert_eq!(gpu.screen[offset..offset + 8], pixel_byte1);
         assert_eq!(gpu.screen[offset + 8..offset + 16], pixel_byte2);
 
-        // Lets draw into an already populated set portion of the screen
+        // Lets draw into an already populated/set part of the screen ===================
         // ... At position 96 we have our first set pixel.
         // ... This is because earlier we populated '1111 0001' in the 'middle of second row'
         // ... 'middle of 2nd row => 64 + (64/2) => 64 + 32 = 96'
         let offset = W + (W / 2);
+        println!("offset of middle of 2nd row == {:?}", offset);
 
         // convert to a vX, vY
         let v_x = W / 2;
@@ -388,7 +428,8 @@ mod cputests {
         );
 
         // ... Last but not least, make sure that the vF unset flag got set to 1
-        assert_eq!(cpu.registers[0xF], 1);
+        // TODO: Fix code so it sets flag
+        assert_eq!(cpu.registers[0xF], 1, "vF unset flag is not 1!");
     }
 
     #[test]
