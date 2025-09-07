@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
+use std::io;
+use std::io::Write;
+
 // I am thinking of making this a layer between the App and the Ratatui
 // Contains the graphics processing.
 // use crossterm::event::Event;
@@ -51,6 +54,43 @@ impl Gpu {
         Self {
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
         }
+    }
+
+    pub fn debug_screen_stdout(&self) {
+        let stdout = io::stdout();
+        let mut handle = stdout.lock();
+        for (i, &pixel) in self.screen.iter().enumerate() {
+            let character = match pixel {
+                true => '▊',
+                false => ' ',
+            };
+            write!(handle, "{}", character).expect("Failed to write to stdout");
+            if (i + 1) % SCREEN_WIDTH == 0 {
+                writeln!(handle).expect("Failed to write newline");
+            }
+        }
+        handle.flush().expect("Couldnt flush!");
+    }
+
+    pub fn debug_screen_print_string(&self) {
+        let mut screen_string = String::with_capacity(SCREEN_WIDTH * SCREEN_HEIGHT + SCREEN_HEIGHT);
+
+        // Iterate over the screen array with the index `i`
+        for (i, &pixel) in self.screen.iter().enumerate() {
+            // Push the appropriate character to the string
+            let character = match pixel {
+                true => '▊',  // A block character for an "on" pixel
+                false => ' ', // A space for an "off" pixel
+            };
+            screen_string.push(character);
+
+            // After every row, push a newline character
+            if (i + 1) % SCREEN_WIDTH == 0 {
+                screen_string.push('\n');
+            }
+        }
+        // Print the final string to the console
+        println!("{}", screen_string);
     }
 
     //pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {

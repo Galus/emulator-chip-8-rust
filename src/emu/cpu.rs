@@ -293,7 +293,9 @@ mod cputests {
         gpu.screen[offset..(offset + 4)].fill(true);
         gpu.screen[offset + 7] = true;
         println!("Second row filled with '1111 0001' somewhere...");
-        println!("{:x?}", gpu.screen.map(|bool| bool as u32));
+        gpu.debug_screen_print_string();
+
+        // println!("{:x?}", gpu.screen.map(|bool| bool as u32));
         assert_eq!(
             gpu.screen[offset..(offset + 8)],
             [true, true, true, true, false, false, false, true]
@@ -331,10 +333,12 @@ mod cputests {
         cpu.registers[4] = VX;
         cpu.registers[3] = VY;
         println!("screen (before writing to bottom-right of screen):");
-        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
+        gpu.debug_screen_print_string();
+        //println!("{:x?}", gpu.screen.map(|bool| bool as u8));
         OpCode::dxyn(&mut cpu, &mem, &mut gpu);
         println!("screen (after writing to bottom-right of screen):");
-        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
+        gpu.debug_screen_print_string();
+        // println!("{:x?}", gpu.screen.map(|bool| bool as u8));
         assert_eq!(cpu.registers[0xF], 0); // see if the unset flag in vF remained at 0
 
         // calculate offset in screen for this bottom-right test
@@ -359,7 +363,8 @@ mod cputests {
 
         OpCode::dxyn(&mut cpu, &mem, &mut gpu);
         println!("screen (after overwriting the second-rows set pixels):");
-        println!("{:x?}", gpu.screen.map(|bool| bool as u8));
+        gpu.debug_screen_print_string();
+        // println!("{:x?}", gpu.screen.map(|bool| bool as u8));
 
         // Remember, pixels are xor'd, you cant assume the screen will have the exact pixel bytes
         // ...                 if existing pixels = 1111 0001

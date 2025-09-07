@@ -18,9 +18,9 @@ This document outlines a series of tests to be implemented for each CHIP-8 opcod
 - [ ] Expected Result: The instruction is ignored, and the PC is incremented by 2.
 
 ## 1nnn - JP addr
-- [ ] Test: PC jump.
-- [ ] Steps: Initialize a CPU. Execute a `JP` instruction with a target address.
-- [ ] Expected Result: The PC is set to the target address.
+- [X] Test: PC jump.
+- [X] Steps: Initialize a CPU. Execute a `JP` instruction with a target address.
+- [X] Expected Result: The PC is set to the target address.
 
 ## 2nnn - CALL addr
 - [ ] Test: Stack and PC.
@@ -52,14 +52,14 @@ This document outlines a series of tests to be implemented for each CHIP-8 opcod
 - [ ] Expected Result: PC is incremented by 2.
 
 ## 6xkk - LD Vx, byte
-- [ ] Test: Load immediate byte.
-- [ ] Steps: Initialize a CPU. Execute `LD Vx, kk`.
-- [ ] Expected Result: `V[x]` is set to `kk`, and PC is incremented by 2.
+- [X] Test: Load immediate byte.
+- [X] Steps: Initialize a CPU. Execute `LD Vx, kk`.
+- [X] Expected Result: `V[x]` is set to `kk`, and PC is incremented by 2.
 
 ## 7xkk - ADD Vx, byte
-- [ ] Test: Add immediate byte.
-- [ ] Steps: Initialize a CPU with a value in `V[x]`. Execute `ADD Vx, kk`.
-- [ ] Expected Result: `V[x]` is set to `V[x] + kk`, and PC is incremented by 2. Test for overflow where the result wraps around.
+- [X] Test: Add immediate byte.
+- [X] Steps: Initialize a CPU with a value in `V[x]`. Execute `ADD Vx, kk`.
+- [X] Expected Result: `V[x]` is set to `V[x] + kk`, and PC is incremented by 2. Test for overflow where the result wraps around.
 
 ## 8xy0 - LD Vx, Vy
 - [ ] Test: Load register.
@@ -124,9 +124,9 @@ This document outlines a series of tests to be implemented for each CHIP-8 opcod
 - [ ] Expected Result: PC is incremented by 2.
 
 ## Annn - LD I, addr
-- [ ] Test: Load I register.
-- [ ] Steps: Initialize a CPU. Execute `LD I, addr`.
-- [ ] Expected Result: The I register is set to `addr`, and PC is incremented by 2.
+- [X] Test: Load I register.
+- [X] Steps: Initialize a CPU. Execute `LD I, addr`.
+- [X] Expected Result: The I register is set to `addr`, and PC is incremented by 2.
 
 ## Bnnn - JP V0, addr
 - [ ] Test: Jump with offset.
