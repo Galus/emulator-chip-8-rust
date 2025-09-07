@@ -428,6 +428,7 @@ mod cputests {
         );
 
         // ... Last but not least, make sure that the vF unset flag got set to 1
+        // This is because the third pixel was unset b/c 1 XOR 1 = 0
         // TODO: Fix code so it sets flag
         assert_eq!(cpu.registers[0xF], 1, "vF unset flag is not 1!");
     }

@@ -522,15 +522,27 @@ impl Chip8ISet for OpCode {
                 .collect();
 
             // Check if pixels erased: any pixels were flipped from set to unset
-            if old_pixels
-                .iter()
-                .zip(new_pixels.iter())
-                .any(|(&old, &new)| old && !new)
-            {
-                cpu.registers[0xF] = 1;
-            } else {
-                cpu.registers[0xF] = 0;
+            for i in 0..old_pixels.len() {
+                let old = old_pixels[i];
+                let new = new_pixels[i];
+                if old && !new {
+                    cpu.registers[0xF] = 1;
+                }
             }
+            // TODO: Figure out what type of drugs I was on when I wrote this.
+            // if old_pixels
+            //     .iter()
+            //     .zip(new_pixels.iter())
+            //     .any(|(&old, &new)| old && !new)
+            // {
+            //     if (&old) {
+            //         println!("SHOULD SET vF FLAG TO 1");
+            //         cpu.registers[0xF] = 1;
+            //     }
+            // } else {
+            //     println!("SHOULD SET vF FLAG TO 0");
+            //     cpu.registers[0xF] = 0;
+            // }
 
             // Update the screen with new pixels
             old_pixels.copy_from_slice(&new_pixels);
