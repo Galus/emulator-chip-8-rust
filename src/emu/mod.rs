@@ -354,22 +354,24 @@ impl Emulator {
         let (tx, rx) = mpsc::channel();
         let event_tx = tx.clone();
         let progress_tx = tx.clone();
-        println!("spawning io thread");
+        info!("spawning io thread");
         thread::spawn(move || io_thread(event_tx));
 
         // for testing right now...
-        println!("spawning progress bar thread");
+        info!("spawning progress bar thread");
         thread::spawn(move || progress_task(progress_tx));
 
-        println!("spawning other background tasks");
+        info!("spawning other background tasks");
         thread::spawn(move || background_task());
         thread::spawn(move || background_task2());
 
         while !self.should_quit {
             self.timers.tick();
-            let _ = self
-                .cpu
-                .tick(&mut self.memory, &mut self.gpu, &mut self.timers);
+            for _ in 0..10 {
+                let _ = self
+                    .cpu
+                    .tick(&mut self.memory, &mut self.gpu, &mut self.timers);
+            }
 
             match rx.recv() {
                 Ok(AppEvent::KeyEvent(key_event)) => {

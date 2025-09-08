@@ -93,7 +93,7 @@ impl Cpu {
             (0xF, _, 3, 3) => OpCode::fx33(self, memory),
             (0xF, _, 5, 5) => OpCode::fx55(self, memory),
             (0xF, _, 6, 5) => OpCode::fx65(self, memory),
-            (a, b, c, d) => println!("Not implemented {:x?}", (a, b, c, d)),
+            (a, b, c, d) => warn!(target: "cpu", "Instruction not implemented {:x?}", (a, b, c, d)),
         }
         Ok(())
     }
@@ -101,12 +101,14 @@ impl Cpu {
     // main emulation loop tick - fetches & processes a single opcode
     pub fn tick(&mut self, memory: &mut Memory, gpu: &mut Gpu, timers: &mut Timer) -> Result<()> {
         info!(target: "cpu", "cpu.tick called");
-        info!(target: "cpu", "cpu: {:x?}", self);
         let _ = self.fetch_opcode(memory);
         info!(target: "cpu", "cpu.current_opcode: {:x?}", self.current_opcode);
+        debug!(target: "cpu", "cpu: {:x?}", self);
         if let Err(err) = self.process(memory, gpu, timers) {
             eprintln!("failed to process.: {}", err);
         }
+        memory.print_memory_bytes(self.program_counter.into(), 10); // print next 5 instructions
+        self.program_counter += 0x02; // go to next instruction.
         Ok(())
     }
 }

@@ -242,7 +242,7 @@ impl Chip8ISet for OpCode {
     fn _0nnn(cpu: &mut Cpu) {
         let (_, n1, n2, n3) = cpu.current_opcode.into_tuple(); //opcodes are u16
         let address = (n1 as u16) << 8 | (n2 as u16) << 4 | n3 as u16;
-        println!("address d{:?}, x{:x?}", address, address);
+        //TODO: woops println!("address d{:?}, x{:x?}", address, address);
         // Figure out if this NNN is BCD'd or if its the bits sequentially
         // where 0000 1111     0000 1011     0000 0111 implies -> 1111 1011 0111
         //              15            11             6         ->    E    B    6
@@ -256,6 +256,7 @@ impl Chip8ISet for OpCode {
     fn _1nnn(cpu: &mut Cpu) {
         let (_, n1, n2, n3) = cpu.current_opcode.into_tuple(); //opcodes are u16
         let address = (n1 as u16) << 8 | (n2 as u16) << 4 | n3 as u16;
+        debug!(target: "iset", "1nnn: Jumping to address {:x?} (setting pc)", address);
         cpu.program_counter = address;
     }
 

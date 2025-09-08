@@ -88,6 +88,28 @@ impl Memory {
         }
         println!();
     }
+
+    pub fn print_memory_bytes(&self, start: usize, num_bytes: usize) {
+        let end = start + num_bytes;
+        for (i, byte) in self.ram[start..end].iter().enumerate() {
+            if i % 16 == 0 {
+                debug!(target:"mem", "\ndumping memory {:04X}: ", i+start);
+            }
+            debug!(target:"mem", "byte: {:02X} ", byte);
+        }
+    }
+
+    pub fn print_memory_rom_data(&self, num_bytes: usize) {
+        let start = ROM_START_ADDRESS;
+        let end = ROM_START_ADDRESS + num_bytes;
+        for (i, byte) in self.ram[start..end].iter().enumerate() {
+            if i % 16 == 0 {
+                debug!("\n{:04X}: ", i);
+            }
+            debug!("{:02X} ", byte);
+        }
+        debug!("\n");
+    }
 }
 
 /// # Chip8 FONT encoding
