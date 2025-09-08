@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 // Contains the CPUs Registers, OpCodes, and their impls.
 use super::{
-    iset::{Chip8ISet, Nibbles, OpCode},
+    iset::{Chip8ISet, ExecutionResult, Nibbles, OpCode},
     timer::Timer,
 };
 use crate::emu::{gpu::Gpu, mem::Memory};
@@ -54,14 +54,15 @@ impl Cpu {
         memory: &mut Memory,
         gpu: &mut Gpu,
         timers: &mut Timer,
-    ) -> Result<()> {
+    ) -> Result<ExecutionResult> {
         // Map the current OpCode to an actual function.
         // DECODE and Process
-        match &self.current_opcode.into_tuple() {
+        //self.program_counter += 0x02; // go to next instruction.
+        let result = match &self.current_opcode.into_tuple() {
             (0, 0, 0xE, 0xE) => OpCode::_00ee(self),
             (0, 0, 0xE, 0) => OpCode::_00e0(gpu),
             (0, _, _, _) => OpCode::_0nnn(self),
-            (1, _, _, _) => OpCode::_1nnn(self),
+            (1, _, _, _) => OpCode::_1nnn(self), // jump
             (2, _, _, _) => OpCode::_2nnn(self),
             (3, _, _, _) => OpCode::_3xnn(self),
             (4, _, _, _) => OpCode::_4xnn(self),
@@ -93,9 +94,12 @@ impl Cpu {
             (0xF, _, 3, 3) => OpCode::fx33(self, memory),
             (0xF, _, 5, 5) => OpCode::fx55(self, memory),
             (0xF, _, 6, 5) => OpCode::fx65(self, memory),
-            (a, b, c, d) => warn!(target: "cpu", "Instruction not implemented {:x?}", (a, b, c, d)),
-        }
-        Ok(())
+            (a, b, c, d) => {
+                warn!(target: "cpu", "Instruction not implemented {:x?}", (a, b, c, d));
+                ExecutionResult::Advanced
+            }
+        };
+        Ok(result)
     }
 
     // main emulation loop tick - fetches & processes a single opcode
@@ -104,11 +108,16 @@ impl Cpu {
         let _ = self.fetch_opcode(memory);
         info!(target: "cpu", "cpu.current_opcode: {:x?}", self.current_opcode);
         debug!(target: "cpu", "cpu: {:x?}", self);
-        if let Err(err) = self.process(memory, gpu, timers) {
-            eprintln!("failed to process.: {}", err);
+        if let Ok(result) = self.process(memory, gpu, timers) {
+            match result {
+                ExecutionResult::Advanced => self.program_counter += 2,
+                ExecutionResult::Skipped => self.program_counter += 4,
+                ExecutionResult::Jumped => { /* PC was set by the instruction; do nothing */ }
+            }
+        } else {
+            eprintln!("failed to process.: {}", "errrrrrrrrr");
         }
         memory.print_memory_bytes(self.program_counter.into(), 10); // print next 5 instructions
-        self.program_counter += 0x02; // go to next instruction.
         Ok(())
     }
 }
