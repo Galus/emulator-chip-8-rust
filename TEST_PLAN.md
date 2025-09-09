@@ -139,12 +139,13 @@ This document outlines a series of tests to be implemented for each CHIP-8 opcod
 - [ ] Expected Result: `V[x]` is set to a random number bitwise ANDed with `kk`, and PC is incremented by 2.
 
 ## Dxyn - DRW Vx, Vy, nibble
-- [ ] Test: Draw sprite without collision.
-- [ ] Steps: Initialize a CPU with a clear video buffer. Execute `DRW Vx, Vy, nibble`.
-- [ ] Expected Result: The sprite is drawn correctly at the coordinates `(V[x], V[y])`. `Vf` is set to 0. PC is incremented by 2.
-- [ ] Test: Draw sprite with collision.
-- [ ] Steps: Initialize a CPU with a pre-drawn pixel at a location where the new sprite will overlap. Execute `DRW Vx, Vy, nibble`.
-- [ ] Expected Result: The overlapping pixel is XORed correctly. `Vf` is set to 1. PC is incremented by 2.
+- [X] Test: Draw sprite without collision.
+- [X] Steps: Initialize a CPU with a clear video buffer. Execute `DRW Vx, Vy, nibble`.
+- [X] Expected Result: The sprite is drawn correctly at the coordinates `(V[x], V[y])`. `Vf` is set to 0. PC is incremented by 2.
+- [X] Test: Draw sprite with collision.
+- [X] Steps: Initialize a CPU with a pre-drawn pixel at a location where the new sprite will overlap. Execute `DRW Vx, Vy, nibble`.
+- [X] Expected Result: The overlapping pixel is XORed correctly. `Vf` is set to 1. PC is incremented by 2.
+- [X] IBM LOGO and Timedus Chip8 Logo Tested!
 
 ## Ex9E - SKP Vx
 - [ ] Test: Skip on key press.
