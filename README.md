@@ -84,6 +84,7 @@ Once the application is running press `?` to open the help:
 - 9/01/25 Got threading and TUI logger implemented. Organized overall arch and iset.
 - 9/06/25 Added [TEST_PLAN.md](/TEST_PLAN.md)
 - 9/07/25 Added a bunch of tests and finished dxyn tests. Discovered [Timendus chip8-test-suite](https://github.com/Timendus/chip8-test-suite)
+- 9/08/25 Working roms! Learned that dxyn is supposed to draw n-height/rows vertically instead of just horizontally. Got the Chip8 and IBM logo tests working after changing gpu render logic to flip the y coordinate because it was rendering upside down in the TUI but the logs showed nicely.
 
 ## Instructions Progress
 For more detailed progress see [TEST_PLAN.md](/TEST_PLAN.md)
