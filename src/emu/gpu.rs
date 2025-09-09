@@ -90,7 +90,8 @@ impl Gpu {
             }
         }
         // Print the final string to the console
-        println!("{}", screen_string);
+        //println!("{}", screen_string);
+        info!(target: "gpu", "{}", screen_string);
     }
 
     //pub fn run(&mut self, terminal: &mut DefaultTerminal) -> Result<()> {
@@ -133,11 +134,12 @@ impl Gpu {
                     for x in 0..SCREEN_WIDTH {
                         let index = y * SCREEN_WIDTH + x;
                         if screen_ref[index] {
+                            let flipped_y = (SCREEN_HEIGHT - 1 - y) as f64;
                             ctx.draw(&Rectangle {
                                 x: x as f64,
-                                y: y as f64,
-                                width: 1.0,
-                                height: 1.0,
+                                y: flipped_y,
+                                width: 0.8,
+                                height: 0.4,
                                 color: Color::Cyan,
                             })
                         }

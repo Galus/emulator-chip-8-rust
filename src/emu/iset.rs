@@ -1,4 +1,9 @@
-use super::{cpu::Cpu, gpu::Gpu, mem::Memory, timer::Timer};
+use super::{
+    cpu::Cpu,
+    gpu::{Gpu, SCREEN_HEIGHT, SCREEN_WIDTH},
+    mem::Memory,
+    timer::Timer,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct OpCode(pub u16);
@@ -535,54 +540,45 @@ impl Chip8ISet for OpCode {
         ExecutionResult::Advanced
     }
 
-    /// Draw a sprite at position vX, vY with N bytes of sprite data starting at the address
-    /// stored in I. Set vF to 01 if any set pixels are changed to unset, and 00 otherwise.
+    /// Draw a sprite at position vX, vY with n height.
+    /// bytes of sprite data start at the address stored in I.
+    /// Set vF to 01 if any set pixels are changed to unset, and 00 otherwise.
     fn dxyn(cpu: &mut Cpu, mem: &Memory, gpu: &mut Gpu) -> ExecutionResult {
         let (_, x, y, n) = OpCode::into_tuple(&cpu.current_opcode);
         let start = cpu.index_register as usize;
         let end = start + (n as usize);
         let sprite_data = &mem.ram[start..end];
+        // Too many people online say that we should wrap around w/ modulus
         let (vx, vy) = (
-            cpu.registers[x as usize] as usize,
-            cpu.registers[y as usize] as usize,
+            cpu.registers[x as usize] as usize % SCREEN_WIDTH,
+            cpu.registers[y as usize] as usize % SCREEN_HEIGHT,
         );
-        let screen_offset = vy.wrapping_mul(crate::emu::gpu::SCREEN_WIDTH) + vx;
-        // for each sprite byte
-        for i in 0..n {
-            let screen_start = screen_offset + (i as usize) * 8;
-            let old_pixels = &mut gpu.screen[screen_start..(screen_start + 8)];
-            let sprite_byte = sprite_data[i as usize];
-            let new_pixels: Vec<bool> = old_pixels
-                .iter()
-                .zip((0..8).map(|bit| (sprite_byte & (1 << (7 - bit))) != 0))
-                .map(|(&old, new)| old ^ new)
-                .collect();
+        let mut collision_detected = false;
 
-            // Check if pixels erased: any pixels were flipped from set to unset
-            for i in 0..old_pixels.len() {
-                let old = old_pixels[i];
-                let new = new_pixels[i];
-                if old && !new {
-                    cpu.registers[0xF] = 1;
+        for row in 0..n {
+            let sprite_byte = sprite_data[row as usize];
+            let current_y = vy.wrapping_add(row as usize) % SCREEN_HEIGHT;
+
+            for bit_index in 0..8 {
+                let current_x = vx.wrapping_add(bit_index) % SCREEN_WIDTH;
+                let screen_index = current_y * SCREEN_WIDTH + current_x;
+
+                if screen_index >= SCREEN_WIDTH * SCREEN_HEIGHT {
+                    continue;
+                }
+                let old_pixel = gpu.screen[screen_index];
+                let new_pixel = (sprite_byte >> (7 - bit_index)) & 0x1 == 1;
+                gpu.screen[screen_index] = old_pixel ^ new_pixel;
+
+                if old_pixel && !gpu.screen[screen_index] {
+                    collision_detected = true;
                 }
             }
-            // TODO: Figure out what type of drugs I was on when I wrote this.
-            // if old_pixels
-            //     .iter()
-            //     .zip(new_pixels.iter())
-            //     .any(|(&old, &new)| old && !new)
-            // {
-            //     if (&old) {
-            //         println!("SHOULD SET vF FLAG TO 1");
-            //         cpu.registers[0xF] = 1;
-            //     }
-            // } else {
-            //     println!("SHOULD SET vF FLAG TO 0");
-            //     cpu.registers[0xF] = 0;
-            // }
-
-            // Update the screen with new pixels
-            old_pixels.copy_from_slice(&new_pixels);
+        }
+        if collision_detected {
+            cpu.registers[0xF] = 1;
+        } else {
+            cpu.registers[0xF] = 0;
         }
         ExecutionResult::Advanced
     }

@@ -108,6 +108,7 @@ impl Cpu {
         let _ = self.fetch_opcode(memory);
         info!(target: "cpu", "cpu.current_opcode: {:x?}", self.current_opcode);
         debug!(target: "cpu", "cpu: {:x?}", self);
+        gpu.debug_screen_print_string();
         if let Ok(result) = self.process(memory, gpu, timers) {
             match result {
                 ExecutionResult::Advanced => self.program_counter += 2,
@@ -310,7 +311,7 @@ mod cputests {
         gpu.screen[offset..(offset + 4)].fill(true);
         gpu.screen[offset + 7] = true;
         println!("Second row filled with '1111 0001' in middle...");
-        gpu.debug_screen_print_string();
+        //gpu.debug_screen_print_string();
 
         // println!("{:x?}", gpu.screen.map(|bool| bool as u32));
         assert_eq!(
@@ -377,11 +378,11 @@ mod cputests {
         println!("preview bytes to draw: {:x?}", &mem.ram[start..end]);
 
         println!("screen (before writing to bottom-right of screen):");
-        gpu.debug_screen_print_string();
+        //gpu.debug_screen_print_string();
         //println!("{:x?}", gpu.screen.map(|bool| bool as u8));
         OpCode::dxyn(&mut cpu, &mem, &mut gpu);
         println!("screen (after writing to bottom-right of screen):");
-        gpu.debug_screen_print_string();
+        //gpu.debug_screen_print_string();
         // println!("{:x?}", gpu.screen.map(|bool| bool as u8));
 
         // see if the unset flag in vF remained at 0
@@ -417,7 +418,7 @@ mod cputests {
 
         OpCode::dxyn(&mut cpu, &mem, &mut gpu);
         println!("screen (after overwriting the second-rows set pixels):");
-        gpu.debug_screen_print_string();
+        //gpu.debug_screen_print_string();
         // println!("{:x?}", gpu.screen.map(|bool| bool as u8));
 
         // Remember, pixels are xor'd, you cant assume the screen will have the exact pixel bytes

@@ -367,7 +367,7 @@ impl Emulator {
 
         while !self.should_quit {
             self.timers.tick();
-            for _ in 0..10 {
+            for _ in 0..20 {
                 let _ = self
                     .cpu
                     .tick(&mut self.memory, &mut self.gpu, &mut self.timers);
